@@ -191,11 +191,14 @@ $\alpha(\tilde \theta^j | \theta_{i-1}^j,  \vect \theta_{i-1}^{-j})
 = 1$. 
 That is
 
-\begin{align*}
+\begin{align}
+\label{eq:accept_beta}
 \alpha(\tilde \theta_{i}^{\lambda_0} | \theta_{i-1}^{\lambda_0}, \vect \theta_{i-1}^{- \lambda_0})& = 1 \\
+\label{eq:accept_lambda0}
 \alpha(\tilde \theta_{i}^{\lambda_1} | \theta_{i-1}^{\lambda_1}, \vect \theta_{i-1}^{- \lambda_1})& = 1 \\
+\label{eq:accept_lambda1}
 \alpha(\tilde \theta_{i}^{\beta} | \theta_{i-1}^{\beta}, \vect \theta_{i-1}^{- \beta})& = 1.
-\end{align*}
+\end{align}
 
 For the parameter $t_1$ we use a uniform random walk proposal distribution,
 
@@ -207,10 +210,19 @@ Q(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1}) = \f
 Here $d$ is a tuning parameter. Since the proposal distribution is symmetric around the current value, that is $Q(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1}) = Q(\theta_{i-1}^{t_1} | \tilde \theta_{i}^{t_1}, \vect \theta_{i-1}^{- t_1})$, the acceptance probability becomes
 
 \begin{align*}
-\alpha(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1})& = \min \left \{ 1, 
+\alpha(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1})& = 
+\min \left \{ 1, 
 \frac{\pi (\tilde \theta^{t_1} |  \vect \theta_{i-1}^{-t_1})}{\pi (\theta_{i-1}^{t_1} |  \vect \theta_{i-1}^{-t_1})} 
+\right \}
+= \min \left \{1,
+\frac{e^{\tilde t_1 (\lambda_1 - \lambda_0)} \lambda_0^{\tilde{y_0} + 1} \lambda_1^{\tilde{y_1} + 1}}{e^{t_1 (\lambda_1 - \lambda_0)} \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}}
+\right \} \\
+&= \min \left \{1,
+e^{(\tilde t_1 - t_1) (\lambda_1 - \lambda_0)} \lambda_0^{\tilde y_0 - y_0} \lambda_1^{\tilde{y_1} - y_1}
 \right \}.
 \end{align*}
+
+Note that again the iteration index is exluded from the longer expressions for readability. To avoid numerical owerflow and underlow and increase efficiency the computations of acceptance probability is computed on log-scale.
 
 
 ```{r}
@@ -456,7 +468,7 @@ ggplot(df.parameters.single.mc.multiple, aes(x = iter, y = value, col = realizat
 
 ??????????????????? should we get rid of the burn-in period for these plots?
 
-In Figure \ref{fig:trace_plot_multiple} we see an example where the burn-in of 1000 iterations is not enough to converge to the posterior distribution. Even though both chains appear to converge to the same distribution, it is not until around iteration 2000 that realization 1 appear to have converged. For the previous iterations it is stuck at a local minima for $t_1$ around 1940. This illustrates the importance of running the MCMC algorithm long enough and from multiple initial conditions to determine if convergence has actually been reached. In the end these two new realizations seem to converge to the same distribution, supporting our belief that we for the first realization reached convergence during our burn-in period.
+In Figure \ref{fig:trace_plot_multiple} we see an example where the burn-in of 1000 iterations is not enough to converge to the posterior distribution. Even though both chains appear to converge to the same distribution, it is not until around iteration 2000 that realization 1 appear to have converged. For the previous iterations it is stuck at a local minima for $t_1$ around 1940. This illustrates the importance of running the MCMC algorithm long enough and from multiple initial conditions to determine if convergence has actually been reached. In the end these two new realizations seem to converge to the same distribution, supporting our belief that we for the first realization reached convergence during our burn-in period. Based on the three realizations the mixing properties of the algorithm appear quite good, as the Markov chain reaches the posterior fairly quickly and moves quickly around the posterior modes. The very low autocorrelation for lag larger than 10 that we observe is another indication that the algorithm mixes well.
 
 
 ## 6)
@@ -567,9 +579,21 @@ From Figure \ref{fig:trace_plot_low_d} we observe that for $d \leq 5$ the algori
 
 ## 7)
 
-Next we define and implement a block Metropolis–Hastings algorithm for $\pi(\vect \theta | \vect x)$ using the following two block proposals. The first version uses a block proposal for $(t_1, \lambda_0, \lambda_1)$ keeping $\beta = \theta^\beta$ unchanged. We generate the potential new values $(\tilde t_1, \tilde \lambda_0, \tilde \lambda_1) = \tilde \theta^{- \beta}$ by first generating $\tilde t_1 = \tilde \theta ^{t_1}$ from a normal distribution cented at the current value of $t_1$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1) = (\tilde \theta^{\lambda_0}, \tilde \theta^{\lambda_1}$ from their joint full conditionals inserted the potential new value $\tilde t_1$, i.e $\pi(\lambda_0, \lambda_1 | \vect x, \tilde t_1, \beta)$.
+In this task we define and implement a block Metropolis–Hastings algorithm for $\pi(\vect \theta | \vect x)$ using the two block proposals defined below. To increase readability we will write out expressions for the full conditionals, proposal distributions and acceptance probabilites without corresponding iteration indexes. This will be done for the whole rest of the problem.
+
+
+### 7a) 
+The first version uses a block proposal for $(t_1, \lambda_0, \lambda_1)$ keeping $\beta = \theta^\beta$ unchanged. We generate the potential new values $(\tilde t_1, \tilde \lambda_0, \tilde \lambda_1) = \tilde \theta^{- \beta}$ by first generating $\tilde t_1 = \tilde \theta ^{t_1}$ from a normal distribution centered at the current value of $t_1$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1) = (\tilde \theta^{\lambda_0}, \tilde \theta^{\lambda_1}$ from their joint full conditionals inserted the potential new value $\tilde t_1$, i.e $\pi(\lambda_0, \lambda_1 | \vect x, \tilde t_1, \beta)$.
 
 ?????????????????????????????????????????++ is lambda0 and lambda 1 independent (joint conditional)
+
+As we still use the full conditional of $\beta$ as proposal distribution for $\beta$ we get the same expression for the proposal distribution and acceptance probability as respectively equation (\ref{eq:fc_beta_np}) and (\ref{eq:accept_beta}), i.e
+\begin{align*}
+Q(\tilde \theta_{i}^{\beta} | \theta_{i-1}^{\beta}, \vect \theta_{i-1}^{- \beta}) &= \pi (\tilde \theta_{i}^{\beta} | \vect \theta_{i-1}^{- \beta})
+= \frac{(1 + \lambda_0 + \lambda_1)^6}{\Gamma(6)} \frac{1}{\tilde \beta^5} e^{\frac{-(1 + \lambda_0 + \lambda_1)}
+{\tilde \beta}} \\
+\alpha(\tilde \theta_{i}^{\lambda_0} | \theta_{i-1}^{\lambda_0}, \vect \theta_{i-1}^{- \lambda_0})& = 1 
+\end{align*}
 
 As $\lambda_0$ and $\lambda_1$ are independent given $\beta$ and $t_1$ their joint full conditional is
 
@@ -594,7 +618,7 @@ The proposal distribution of $t_1$ is a normally distributed random walk
 \begin{align*}
 \tilde \theta^{t_1} &\sim \mathcal{N} (\theta_{i-1}^{t_1}, \sigma^2) \\
  Q(\tilde \theta_i^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{-t_1}) &=
- \frac{1}{\sqrt{2 \pi} \sigma} e^{\frac{-1}{2 \sigma^2} t_1^2 }
+ \frac{1}{\sqrt{2 \pi} \sigma} e^{\frac{-1}{2 \sigma^2} (\tilde t_1 - t_1)^2 }
 \end{align*}
 
 ??????????????????????????????? should proposal function for lambda0 and lambda1 be the same?
@@ -604,22 +628,194 @@ The proposal function for $\lambda_0$ and $\lambda_1$ is the joint full conditio
 \begin{align*}
 Q(\tilde \theta_{i}^{\lambda_0} | \theta_{i-1}^{\lambda_0}, \tilde \theta_{i}^{t_1}, \vect \theta_{i-1}^{- \{\lambda_0, t_1\}})
 & = \pi (\tilde \theta_{i}^{\lambda_0} | \tilde \theta_i^{t_1}, \vect \theta_{i-1}^{- \{\lambda_0, t_1\}}) 
-\propto \lambda_0^{y_0 + 1} e^{-\lambda_0(\tilde t_1 - t_0 + \frac{1}{\beta})} \\
+= \frac{(\tilde t_1 - t_0 + \frac{1}{\beta})^{\tilde y_0+2}}{\Gamma(\tilde y_0+2)}
+\tilde \lambda_0^{\tilde y_0 + 1} e^{-\tilde \lambda_0(\tilde t_1 - t_0 + \frac{1}{\beta})} \\
 Q(\tilde \theta_{i}^{\lambda_1} | \theta_{i-1}^{\lambda_1}, \tilde \theta_{i}^{t_1}, \vect \theta_{i-1}^{- \{\lambda_1, t_1\}})
 & = \pi (\tilde \theta_{i}^{\lambda_1} | \tilde \theta_i^{t_1}, \vect \theta_{i-1}^{- \{\lambda_1, t_1\}})
-\propto \lambda_1^{y_1 + 1} e^{-\lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}.
+= \frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}
+\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}.
 \end{align*}
 
-Here $\vect \theta_{i-1}^{\{ j,k\}} = [\theta_i^1, \dots, \theta_{i}^{j-1}, \theta_{i-1}^{j+1}, \dots, \theta_{i-1}^{k-1}, \theta_{i-1}^{k+1}, \theta_{i-1}^4]$. To increase readability the written out expressions for the full conditionals are written without coressponding iteration indexes.
+Here $\vect \theta_{i-1}^{\{ j,k\}} = [\theta_i^1, \dots, \theta_{i}^{j-1}, \theta_{i-1}^{j+1}, \dots, \theta_{i-1}^{k-1}, \theta_{i-1}^{k+1}, \theta_{i-1}^4]$. 
+The block acceptance probability becomes
+
+\begin{align*}
+\alpha (\tilde{\vect \theta_i}^{-\beta} | \theta_i^{\beta})
+&=
+\min \left \{1,
+\frac{\pi(\tilde t_1, \tilde \lambda_0, \tilde \lambda_1 | \beta)}{\pi(t_1, \lambda_0, \lambda_1 |, \beta)}
+\frac{Q(t_1, \lambda_0, \lambda_1 | \tilde t_1, \tilde \lambda_0, \tilde \lambda_1, \beta)}
+{Q(\tilde t_1 \tilde \lambda_0, \tilde \lambda_1| t_1, \lambda_0, \lambda_1 \beta)}
+\right \} \\
+&=
+\min \left \{1,
+\frac{\pi(\tilde t_1, \tilde \lambda_0, \tilde \lambda_1 | \beta)}{\pi(t_1, \lambda_0, \lambda_1 |, \beta)}
+\frac{Q(t_1| \tilde t_1)}
+{Q(\tilde t_1 | t_1)}
+\frac{Q(\lambda_0, \lambda_1 | t_1, \beta)}
+{Q(\tilde \lambda_0, \tilde \lambda_1| \tilde t_1, \beta)}
+\right \} \\
+&=
+\frac{e^{- \tilde \lambda_0 (\tilde t_{1} - t_0) - \tilde \lambda_1 (t_{2} - \tilde t_1) - \frac{\tilde \lambda_0 + \tilde \lambda_1 + 1}{\beta}}
+\tilde \lambda_0^{\tilde y_0 + 1} \tilde \lambda_1^{\tilde y_1 + 1}}
+{e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
+\lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}}
+\frac{e^{\frac{-1}{2 \sigma^2} (t_1 - \tilde t_1)^2 }}{e^{\frac{-1}{2 \sigma^2} (\tilde t_1 -t_1)^2 }} \\
+& \quad \cdot
+\frac
+{\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
+\lambda_0^{ y_0 + 1} e^{- \lambda_0( t_1 - t_0 + \frac{1}{\beta})}}
+{\frac{(\tilde t_1 - t_0 + \frac{1}{\beta})^{\tilde y_0+2}}{\Gamma(\tilde y_0+2)}
+\tilde \lambda_0^{\tilde y_0 + 1} e^{-\tilde \lambda_0(\tilde t_1 - t_0 + \frac{1}{\beta})}}
+\frac
+{\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma( y_1+2)}
+\lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\beta})}}
+{\frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}
+\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}} \\
+&=
+\frac{e^{- \tilde \lambda_0 (\tilde t_{1} - t_0) - \tilde \lambda_1 (t_{2} - \tilde t_1) - \frac{\tilde \lambda_0 + \tilde \lambda_1 + 1}{\beta}}
+\tilde \lambda_0^{\tilde y_0 + 1} \tilde \lambda_1^{\tilde y_1 + 1}}
+{e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
+\lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}}
+\frac
+{\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
+\lambda_0^{ y_0 + 1} e^{- \lambda_0( t_1 - t_0 + \frac{1}{\beta})}}
+{\frac{(\tilde t_1 - t_0 + \frac{1}{\beta})^{\tilde y_0+2}}{\Gamma(\tilde y_0+2)}
+\tilde \lambda_0^{\tilde y_0 + 1} e^{-\tilde \lambda_0(\tilde t_1 - t_0 + \frac{1}{\beta})}}
+\frac
+{\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma( y_1+2)}
+\lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\beta})}}
+{\frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}
+\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}}
+\end{align*}
+
+To avoid numerical issues and increase efficience the computations of block acceptance probability is in the code performed on log-scale.
+
+### 7b)
+
+The second block-proposal algorithm is defined as follows. A block proposal for $(\beta_0, \lambda_0, \lambda_1) = \theta^{-t_1}$ keeping $t_1$ unchanged. We generate the potential new values $(\tilde \beta_0, \tilde \lambda_0, \tilde \lambda_1) = \tilde \theta^{-t_1}$ by first generating $\tilde \beta = \tilde \theta^{\beta}$ from a normal distribution centered at the current value $\beta$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1)$ from their resulting joint full conditional inserted $\tilde \beta$, i.e $\pi (\tilde \lambda_0, \tilde \lambda_1 | \vect x, t_1, \tilde \beta)$.
+
+The proposal distribution of $t_1$ is the same as the one used in the single site random walk, i.e uniform random walk distributed.
+
+\begin{align*}
+\tilde \theta_{i}^{t_1} \sim \mathrm{Uniform}(\theta_{i-1}^{t_1} - d, \theta_{i-1}^{t_1} + d) \\
+Q(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1}) = \frac{1}{2d}
+\end{align*}
+
+Since the proposal distribution is symmetric around the current value, that is $Q(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1}) = Q(\theta_{i-1}^{t_1} | \tilde \theta_{i}^{t_1}, \vect \theta_{i-1}^{- t_1})$, the acceptance probability becomes
+
+\begin{align*}
+\alpha(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1})& = 
+\min \left \{ 1, 
+\frac{\pi (\tilde \theta^{t_1} |  \vect \theta_{i-1}^{-t_1})}{\pi (\theta_{i-1}^{t_1} |  \vect \theta_{i-1}^{-t_1})} 
+\right \}
+= \min \left \{1,
+\frac{e^{\tilde t_1 (\lambda_1 - \lambda_0)} \lambda_0^{\tilde{y_0} + 1} \lambda_1^{\tilde{y_1} + 1}}{e^{t_1 (\lambda_1 - \lambda_0)} \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}}
+\right \} \\
+&= \min \left \{1,
+e^{(\tilde t_1 - t_1) (\lambda_1 - \lambda_0)} \lambda_0^{\tilde y_0 - y_0} \lambda_1^{\tilde{y_1} - y_1}
+\right \}.
+\end{align*}
+
+The proposal distribution of $\beta$ is a normally distributed random walk
+
+\begin{align*}
+\tilde \theta^{\beta} &\sim \mathcal{N} (\theta_{i-1}^{\beta}, \sigma^2) \\
+ Q(\tilde \theta_i^{\beta} | \theta_{i-1}^{\beta}, \vect \theta_{i-1}^{-\beta}) &=
+ \frac{1}{\sqrt{2 \pi} \sigma} e^{\frac{-1}{2 \sigma^2} (\tilde \beta - \beta)^2 }.
+\end{align*}
+
+
+
+Using the same rasoning as in task A7, we get that since $\lambda_0$ and $\lambda_1$ are independent given $\beta$ and $t_1$ their joint full conditional is
+
+\begin{align*}
+\pi(\lambda_0, \lambda_1 | \vect x, t_1, \beta)
+&= \pi(\lambda_0 | \vect{x}, t_1, \lambda_1, \beta) \pi(\lambda_1 | \vect{x}, t_1, \lambda_0, \beta) \\
+&\propto \lambda_0^{y_0 + 1} e^{-\lambda_0(t_1 - t_0 + \frac{1}{\beta})}  \lambda_1^{y_1 + 1} e^{-\lambda_1(t_2 - t_1 + \frac{1}{\beta})}, \qquad  \lambda_0 \geq 0, \lambda_1 \geq 0.
+\end{align*}
+
+Using that the joint conditional of $(\beta, \lambda_0, \lambda_1)$ is proportional to the full posterior, we get that their joint full conditional is proportional to
+
+\begin{align*}
+\pi(\beta, \lambda_0, \lambda_1 | \vect x, t_1)
+&= \frac{\pi(\lambda_0, \lambda_1, t_1, \beta | \vect x)}{\pi(t_1 | \vect x)}
+\propto \pi(\lambda_0, \lambda_1, t_1, \beta | \vect x) \\
+&\propto e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
+\lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1} \beta^{-5}
+, \qquad  \lambda_0 \geq 0, \lambda_1 \geq 0, \beta > 0.
+\end{align*}
+
+
+The proposal function for $\lambda_0$ and $\lambda_1$ is the joint full conditional and due to the independence of $\lambda_0$ and $\lambda_1$ given $\beta$ and $t_1$, the proposal functions are still given by
+
+\begin{align*}
+Q(\tilde \theta_{i}^{\lambda_0} | \theta_{i-1}^{\lambda_0}, \tilde \theta_{i}^{\beta}, \vect \theta_{i-1}^{- \{\lambda_0, \beta\}})
+& = \pi (\tilde \theta_{i}^{\lambda_0} | \tilde \theta_i^{\beta}, \vect \theta_{i-1}^{- \{\lambda_0, \beta\}}) 
+= \frac{(t_1 - t_0 + \frac{1}{\tilde \beta})^{y_0+2}}{\Gamma(y_0+2)}
+\tilde \lambda_0^{y_0 + 1} e^{-\tilde \lambda_0(t_1 - t_0 + \frac{1}{\tilde \beta})} \\
+Q(\tilde \theta_{i}^{\lambda_1} | \theta_{i-1}^{\lambda_1}, \tilde \theta_{i}^{\beta}, \vect \theta_{i-1}^{- \{\lambda_1, \beta \}})
+& = \pi (\tilde \theta_{i}^{\lambda_1} | \tilde \theta_i^{\beta}, \vect \theta_{i-1}^{- \{\lambda_1, \beta \}})
+= \frac{(t_2 - t_1 + \frac{1}{\tilde \beta})^{y_1+2}}{\Gamma( y_1+2)}
+\tilde \lambda_1^{y_1 + 1} e^{-\tilde \lambda_1(t_2 - t_1 + \frac{1}{\tilde \beta})}.
+\end{align*}
 
 The block acceptance probability becomes
 
-$$\alpha (\tilde{\vect \theta_i}^{-\beta} | \theta_i^{\beta}) =
+\begin{align*}
+\alpha (\tilde{\vect \theta_i}^{-t_1} | \theta_i^{t_1})
+&=
 \min \left \{1,
-\frac{\pi(\tilde t_1, \tilde \lambda_0, \tilde \lambda_1 | \vect x, \beta)}{\pi(t_1, \lambda_0, \lambda_1 | \vect x, \beta)}
-\right \}.$$
+\frac{\pi(\tilde \beta, \tilde \lambda_0, \tilde \lambda_1 | t_1)}{\pi(\beta, \lambda_0, \lambda_1 |, t_1)}
+\frac{Q(\beta, \lambda_0, \lambda_1 | \tilde \beta, \tilde \lambda_0, \tilde \lambda_1, t_1)}
+{Q(\tilde \beta, \tilde \lambda_0, \tilde \lambda_1| \beta, \lambda_0, \lambda_1 t_1)}
+\right \} \\
+&=
+\min \left \{1,
+\frac{\pi(\tilde \beta, \tilde \lambda_0, \tilde \lambda_1 | t_1)}{\pi(\beta, \lambda_0, \lambda_1 |, t_1)}
+\frac{Q(\beta| \tilde \beta)}
+{Q(\tilde \beta | \beta)}
+\frac{Q(\lambda_0, \lambda_1 | t_1, \beta)}
+{Q(\tilde \lambda_0, \tilde \lambda_1| t_1, \tilde \beta)}
+\right \} \\
+&=
+\frac
+{e^{-\tilde \lambda_0 (t_{1} - t_0) - \tilde \lambda_1 (t_{2} - t_1) - \frac{\tilde \lambda_0 + \tilde \lambda_1 + 1}{\tilde \beta}}
+\tilde \lambda_0^{y_0 + 1} \tilde \lambda_1^{y_1 + 1} \tilde \beta^{-5}}
+{e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
+\lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1} \beta^{-5}}
+\frac{e^{\frac{-1}{2 \sigma^2} (\beta - \tilde \beta)^2 }}{e^{\frac{-1}{2 \sigma^2} (\tilde \beta - \beta)^2 }} \\
+& \quad \cdot
+\frac
+{\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
+\lambda_0^{ y_0 + 1} e^{- \lambda_0( t_1 - t_0 + \frac{1}{\beta})}}
+{\frac{(\tilde t_1 - t_0 + \frac{1}{\beta})^{\tilde y_0+2}}{\Gamma(\tilde y_0+2)}
+\tilde \lambda_0^{\tilde y_0 + 1} e^{-\tilde \lambda_0(\tilde t_1 - t_0 + \frac{1}{\beta})}}
+\frac
+{\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma( y_1+2)}
+\lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\beta})}}
+{\frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}
+\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}} \\
+&=
+\frac
+{e^{-\tilde \lambda_0 (t_{1} - t_0) - \tilde \lambda_1 (t_{2} - t_1) - \frac{\tilde \lambda_0 + \tilde \lambda_1 + 1}{\tilde \beta}}
+\tilde \lambda_0^{y_0 + 1} \tilde \lambda_1^{y_1 + 1} \tilde \beta^{-5}}
+{e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
+\lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1} \beta^{-5}} \\
+& \quad \cdot
+\frac
+{\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
+\lambda_0^{ y_0 + 1} e^{- \lambda_0( t_1 - t_0 + \frac{1}{\beta})}}
+{\frac{(\tilde t_1 - t_0 + \frac{1}{\beta})^{\tilde y_0+2}}{\Gamma(\tilde y_0+2)}
+\tilde \lambda_0^{\tilde y_0 + 1} e^{-\tilde \lambda_0(\tilde t_1 - t_0 + \frac{1}{\beta})}}
+\frac
+{\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma( y_1+2)}
+\lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\beta})}}
+{\frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}
+\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}}
+\end{align*}
 
-!!!!!!!!!!!!!!!!!!!! must write acceptance probabilities and proposal functions.
+Again, to avoid numerical issues and increase efficience the computations of block acceptance probability is in the code performed on log-scale.
 
 
 ```{r}
@@ -650,14 +846,31 @@ sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda
              (y[1] + 1) * log(lambda0) + (y[2] + 1) * log(lambda1)) 
   }
   
-    # print(paste("y.proposal=[", toString(y.proposal), "], accept.prob =", 
-    #             exp(log.joint.conditional.t1.lambda0.lambda1(t1.proposal, lambda0.proposal, lambda1.proposal, y.proposal) - 
-    #                   log.joint.conditional.t1.lambda0.lambda1(t1.prev, lambda0.prev, lambda1.prev, y.prev))))
-    # print(paste(log.joint.conditional.t1.lambda0.lambda1(t1.proposal, lambda0.proposal, lambda1.proposal, y.proposal),
-    #             log.joint.conditional.t1.lambda0.lambda1(t1.prev, lambda0.prev, lambda1.prev, y.prev)))
+  # function returning the full conditional of lambda0 on log-form
+  log.gamma.lambda0 = function(t1, lambda0, beta, y0, t0) {
+    return(
+      (y0+2) * log(t1 - t0 + 1 / beta) - lgamma(y0 + 2) +
+        (y0 + 1) * log(lambda0) - lambda0 * (t1 - t0 + 1/beta)
+    )
+  }
+  
+  # function returning the full conditional of lambda1 on log-form
+  log.gamma.lambda1 = function(t1, lambda1, beta, y1, t2){
+    return(
+      (y1+2) * log(t2 - t1 + 1 / beta) - lgamma(y1 + 2) +
+      (y1 + 1) * log(lambda1) - lambda1 * (t2 - t1 + 1 / beta)
+    )
+  }
+  
   #calculate acceptance probability
-  accept.prob = min(exp(log.joint.conditional.t1.lambda0.lambda1(t1.proposal, lambda0.proposal, lambda1.proposal, y.proposal) - 
-                          log.joint.conditional.t1.lambda0.lambda1(t1.prev, lambda0.prev, lambda1.prev, y.prev)), 1)
+  accept.prob = min(exp(
+    log.joint.conditional.t1.lambda0.lambda1(t1.proposal, lambda0.proposal, lambda1.proposal, y.proposal) -
+      log.joint.conditional.t1.lambda0.lambda1(t1.prev, lambda0.prev, lambda1.prev, y.prev) +
+      log.gamma.lambda0(t1.prev, lambda0.prev, beta, y.prev[1], t0) -
+      log.gamma.lambda0(t1.proposal, lambda0.proposal, beta, y.proposal[1], t0) +
+      log.gamma.lambda1(t1.prev, lambda1.prev, beta, y.prev[2], t2) -
+      log.gamma.lambda1(t1.proposal, lambda1.proposal, beta, y.proposal[2], t2)
+    ), 1)
   #print(accept.prob)
   # get a uniform random number between 0 and 1
   u = runif(1)
@@ -669,9 +882,74 @@ sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda
 }
 ```
 
+
+```{r}
+#function used to sample a new beta, lambda0 and lambda1 value using a block proposal.
+# First a new beta is proposed from a normal distribution centered at the current value of t1.
+# Thereafter lambda0 and lambda1 are generated from their joint full conditionals given t1 and proposed beta.
+# Lastly the proposals are either accepted or rejected. If rejected, the current values are returned.
+# Implemented on log-form for efficiency and avoiding too large or to small values
+# sigma is a tuning parameter that determines how large steps sizes are usually taken by beta
+sample.block.beta.normal.walk.and.lambdas = 
+  function(beta.prev, lambda0.prev, lambda1.prev, t1, sigma, t0, t2, y, dates) {
+  # get proposal for new beta value from normal distribution around current value
+  beta.proposal = rnorm(1, mean = beta.prev, sd = sigma)
+  # if proposal is outside the allowed range, return the current value of beta, lambda0 and lambda1
+  if (beta.proposal <= 0) return(list(beta = beta.prev, lambda0 = lambda0.prev, lambda1 = lambda1.prev, accepted = 0))
+
+  # get proposal for lambda0 and lambda1 from joint conditional given t1.proposal and beta
+  lambda0.proposal = sample.lambda0.full.conditional(t1, beta.proposal, t0, y)
+  lambda1.proposal = sample.lambda1.full.conditional(t1, beta.proposal, t2, y)
+  
+
+  # function returning the not normalized joint conditional of beta, lambda0 and lambda1 on log-form
+  log.joint.conditional.beta.lambda0.lambda1 = function(t1, beta, lambda0, lambda1, y) {
+    return(
+      - lambda0 * (t1 - t0) - lambda1 * (t2 - t1) - (lambda0 + lambda1 + 1) / beta +
+             (y[1] + 1) * log(lambda0) + (y[2] + 1) * log(lambda1) - 5 * log(beta)
+      ) 
+  }
+  
+  # function returning the full conditional of lambda0 on log-form
+  log.gamma.lambda0 = function(t1, lambda0, beta, y0, t0) {
+    return(
+      (y0+2) * log(t1 - t0 + 1 / beta) - lgamma(y0 + 2) +
+        (y0 + 1) * log(lambda0) - lambda0 * (t1 - t0 + 1/beta)
+    )
+  }
+  
+  # function returning the full conditional of lambda1 on log-form
+  log.gamma.lambda1 = function(t1, lambda1, beta, y1, t2){
+    return(
+      (y1+2) * log(t2 - t1 + 1 / beta) - lgamma(y1 + 2) +
+      (y1 + 1) * log(lambda1) - lambda1 * (t2 - t1 + 1 / beta)
+    )
+  }
+  
+  #calculate acceptance probability
+  accept.prob = min(exp(
+    log.joint.conditional.beta.lambda0.lambda1(t1, beta.proposal, lambda0.proposal, lambda1.proposal, y) -
+      log.joint.conditional.beta.lambda0.lambda1(t1, beta.prev, lambda0.prev, lambda1.prev, y) +
+      log.gamma.lambda0(t1, lambda0.prev, beta.prev, y[1], t0) -
+      log.gamma.lambda0(t1, lambda0.proposal, beta.proposal, y[1], t0) +
+      log.gamma.lambda1(t1, lambda1.prev, beta.prev, y[2], t2) -
+      log.gamma.lambda1(t1, lambda1.proposal, beta.proposal, y[2], t2)
+    ), 1)
+  #print(accept.prob)
+  # get a uniform random number between 0 and 1
+  u = runif(1)
+  # Return new propsals if u < acceptance probability
+  if(u < accept.prob) return(list(beta = beta.proposal, lambda0 = lambda0.proposal, lambda1 = lambda1.proposal,
+                                  accepted = 1))
+  #else return current values
+  else return(list(beta = beta.prev, lambda0 = lambda0.prev, lambda1 = lambda1.prev, accepted = 0))
+}
+```
+
+
 ```{r}
 # Implements a block mcmc formula for approximating the posterior distribution of the parameters of interest
-block.mcmc = function(n, K, dates, sigma, 
+block.mcmc = function(n, K, dates, sigma, d = NULL,
                       t1.initial = runif(1, dates[1], dates[length(dates)]),
                       beta.initial = 1 / rgamma(1, shape = 2, rate = 1),
                       lambda0.initial = 1 / rgamma(1, shape = 3, scale = beta.initial),
@@ -690,7 +968,8 @@ block.mcmc = function(n, K, dates, sigma,
     prior given beta.initial
     -lambda1.initial: the initial value of lambda1. If not provided it is sampled from the
     prior given beta.initial
-    -blokc.proposal: which block proposal is to be used in the algorithm
+    -block.proposal: which block proposal is to be used in the algorithm. Currently implemented
+    options are c('t1.lambda0.lambda1', 'beta.lambda0.lambda1')
     
   Output:
     -A list containing
@@ -708,6 +987,10 @@ block.mcmc = function(n, K, dates, sigma,
       -- d: the maximum step length for the uniform random walk of t1
       -- percent.t1.accepted: the percent of proposed t1 values accepted
   "
+  # If d is needed, check that d is provided as input
+  if (block.proposal == "beta.lambda0.lambda1" & is.null(d)) {
+    stop("For this method d must be provided as an input parameter")
+  }
   
   K = K + 1 # to make space for initial values
   t0 = dates[1] # extract start date
@@ -747,6 +1030,26 @@ block.mcmc = function(n, K, dates, sigma,
       n.accepted.block = n.accepted.block + new.block.variables$accepted
       n.accepted.t1 = NA # not applicable as t1 is included in block sampling
     }
+    
+    if (block.proposal == "beta.lambda0.lambda1") {
+      # sample new beta value from full conditional distribution
+      new.t1.and.y.value = sample.t1.random.walk.uniform(t1.values[i-1], lambda0.values[i-1],
+                                                  lambda1.values[i-1], d, t0, t2, y, dates)
+      t.values[i] = new.t1.and.y.value$t1
+      y = new.t1.and.y.value$y
+      n.accepted.t1 = new.t1.and.y.value$accepted
+      
+      # simulate new beta, lambda0 and lambda1 value. Get corresponding new y value
+      new.block.variables = sample.block.beta.normal.walk.and.lambdas(beta.values[i-1], lambda0.values[i-1],
+                                                                      lambda1.values[i-1], t1.values[i], sigma, t0,
+                                                                      t2, y, dates)
+        
+      beta.values[i] = new.block.variables$beta
+      lambda0.values[i] = new.block.variables$lambda0
+      lambda1.values[i] = new.block.variables$lambda1
+      # keep track of number of accepted block proposals
+      n.accepted.block = n.accepted.block + new.block.variables$accepted
+    }
   }
   
   # Create a vector with the iteration numbers. The initial values correspond to iteration 0.
@@ -762,7 +1065,7 @@ block.mcmc = function(n, K, dates, sigma,
   # return everything of interest in a list for easy access
   return(list(t1 = t1.values, beta = beta.values, lambda0 = lambda0.values, lambda1 = lambda1.values,
               df.parameters = df.parameters, df.parameters.long = df.parameters.long,
-              n = n, K = K-1, sigma = sigma, iter = iter, 
+              n = n, K = K-1, sigma = sigma, d = d, iter = iter, 
               percent.t1.accepted = n.accepted.t1 / (n + K - 1),
               percent.block.accepted = n.accepted.block / (n + K -1)))
 }
@@ -770,10 +1073,18 @@ block.mcmc = function(n, K, dates, sigma,
 
 
 ```{r}
-n = 10000
+n = 1000
 K = 0
 sigma = 5
 df = block.mcmc(n, K, df.coal$date, sigma, block.proposal = "t1.lambda0.lambda1")
+plot(df$iter, df$t1, type ="l")
+```
+
+```{r}
+n = 1000
+K = 0
+sigma = 5
+df = block.mcmc(n, K, df.coal$date, sigma, block.proposal = "beta.lambda0.lambda1")
 plot(df$iter, df$t1, type ="l")
 ```
 
