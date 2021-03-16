@@ -45,3 +45,5 @@ Exercise-2_files/
 # Local project file
 *.Rproj
 
+# Local copy of rmd-file
+CopyOfExercise-2.Rmd
