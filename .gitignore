@@ -42,3 +42,6 @@ Exercise-2_files/
 # output files
 *.pdf
 
+# Local project file
+*.Rproj
+
