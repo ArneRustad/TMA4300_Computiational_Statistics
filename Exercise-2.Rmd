@@ -1083,8 +1083,9 @@ plot(df$iter, df$t1, type ="l")
 ```{r}
 n = 1000
 K = 0
-sigma = 5
-df = block.mcmc(n, K, df.coal$date, sigma, block.proposal = "beta.lambda0.lambda1")
+sigma = 1
+d = 2
+df = block.mcmc(n, K, df.coal$date, sigma, d, block.proposal = "beta.lambda0.lambda1")
 plot(df$iter, df$t1, type ="l")
 ```
 
