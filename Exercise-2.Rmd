@@ -1,0 +1,823 @@
+---
+title: "Excercise 2"
+subtitle: "TMA4300 Computer intensive statistical methods Spring 2021"
+author: 
+- "Johan Fredrik Agerup"
+- "Arne Rustad"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+header-includes:
+   - \usepackage{subfig}
+---
+
+\newcommand{\vect}[1]{\ensuremath{\boldsymbol{\mathbf{#1} }}}
+\newcommand{\matr}[1]{\ensuremath{\boldsymbol{\mathbf{#1} }}}
+\newcommand{\Var}{\textrm{Var}}
+\newcommand{\E}{\textrm{E}}
+\newcommand{\Cov}{\textrm{Cov}}
+\newcommand{\Corr}{\textrm{Corr}}
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.white=TRUE,prompt=FALSE,
+                      cache=TRUE, size="scriptsize",fig.width=4, fig.height=3)
+```
+
+
+```{r rpackages,eval=TRUE,echo=FALSE}
+library(ggplot2)
+# library(expm)
+# library(Matrix)
+library(dplyr)
+library(tidyverse)
+library(boot)
+library(stats)
+library(latex2exp)
+library(coda)
+```
+
+# Problem A
+
+In this problem we analyze a data set of time intervals between successive coal-mining disaster in the UK involving ten or more men killed. The data is for the period March 15th 1851 to March 22nd 1962. Although the description of the dataset says that all 191 dates in the dataset are dates of explosions, to be in compliance with the exercise text, the first and last records are assumed to be start and end dates. This results in 189 observations in the time period.
+
+## 1)
+
+First we try to get an impression of the data set by making a plot with year along the $x$-axis and the cumulative number of disasters along the $y$-axis.
+
+
+```{r, fig.cap = "\\label{fig:1a_cumplot} Cumulative number of explosions which resulted in 10 or more fatalities. The time span is from March 15 1851 until March 22 1962."}
+df.coal = coal # Get the data into a new data frame variable
+
+
+# add cumulative number of explosions at each time, letting first and last date be respectively start and end date of study
+df.coal$cum.n.explosions = c(1, cumsum(rep(1, nrow(coal)-2)), nrow(coal)-2)
+
+# plot the cumulative number of explosions as a function of time
+ggplot(df.coal, aes(x = date, y = cum.n.explosions)) + geom_line() + ggtitle("Cumulative number of explosions (15.03.1851-22.3.1962)") + xlab("Year") + ylab("Cumlative number of explosions") + geom_vline(xintercept = c(1890,1930))
+```
+
+From Figure \ref{fig:1a_cumplot} the rate of accidents appear approximately constant from year 1850 until around 1890. Then the rate of large explosions appear to dampen a bit, perhaps due to better safety rutines, better equipment, change in societal norms and laws or another reason.
+
+## 2)
+
+To analyze the data set we adopt a hierarchical Bayesian model. Assume the coal-mining disasters to follow an inhomogeneous Poisson process with intensity function $\lambda(t)$ (number of events per year). Assume $\lambda(t)$ to be piecewise constant with $n$ breakpoints. Let $t_0$ and $t_{n+1}$ denote the start and end times for the dataset and let $t_k; \; k=1,2,\dots, n$ denote the break points of the intensity function. Thus,
+
+$$ \lambda(t) =
+\begin{cases}
+\lambda_{k-1} \; &\textrm{for } t \in [t_{k-1}, t_k] \\
+\lambda_n \; &\textrm{for } t \in [t_n, t_{n+1}]
+\end{cases}$$
+
+Thereby the parameters of the model is $t_1, \dots, t_n$ and $\lambda_0, \dots, \lambda_n$ where $t_0 < t_1 < \dots < t_n < t_{n+1}$. By subdividing the observations into short intervals and taking the limit when the length of these intervals go to zero, the likelihood function for the observed data can be derived as
+
+
+\begin{align*}
+f (x | t_1, \dots, t_n, \lambda_0, \dots, \lambda_n)
+&= e^{-\int_{t_0}^{t_{n+1}} \lambda(t) dt} \prod_{k=0}^{n} \lambda_k^{y_k} \\
+&= e^{-\sum_{k = 0}^{n} \lambda_k (t_{k+1} - t_k)} \prod_{k=0}^{n} \lambda_k^{y_k}.
+\end{align*}
+
+?????????????????????????????????? should it here be a normalizing constant as well in the equation
+
+Here $x$ is the observed data and $y_k$ is the number of observed disasters in the period $t_k$ to $t_{k+1}$. Assume $t_1, \dots, t_n$ to be apriori uniformly distributed on the allowed values and $\lambda_0, \dots, \lambda_n$ to be apriori independent of $t_1, \dots, t_n$ and apriori independent of each other. Apriori we assume all $\lambda_0, \dots, \lambda_n$ to be distributed from the same gamma distribution with shape parameter $\alpha = 2$ and scale parameter $\beta$, i.e
+
+\begin{align*}
+\pi (\lambda_i | \beta) = \frac{1}{\beta^2} \lambda_i e^{\frac{-\lambda_i}{\beta}} \; \textrm{for } \lambda_i \geq 0
+\end{align*}
+
+Finally, for $\beta$ we use the improper prior
+
+$$ \pi(\beta) \propto \frac{e^{\frac{-1}{\beta}}}{\beta} \; \textrm{for } \beta > 0$$
+
+In the following it is assumed $n = 1$, resulting in $\vect{\theta} = (t_1, \lambda_0, \lambda_1, \beta)$.
+
+The posterior distribution is then
+
+\begin{align*}
+\pi(\vect{\theta} | x) &= f(x | \vect{\theta}) \pi(\vect{\theta}) \\
+&= f(x | t_1,  \lambda_0, \lambda_1) \pi(t_1) \pi(\lambda_0 | \beta) \pi(\lambda_1 | \vect{\theta}) \pi(\beta)
+\end{align*}
+
+Here it is used that $t_1, \lambda_0$ and $\lambda_1$ all are independent of each other. Inserting the expressions for the likelihood and the priors we get an expression for the posterior distribution up to a proportionality constant
+
+\begin{align*}
+\pi(\vect{\theta} = (t_1, \lambda_0, \lambda_1, \beta) | x)
+&\propto e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1)} \lambda_0^{y_0} \lambda_1^{y_1}
+\frac{1}{t_{2} - t_0}
+\frac{1}{\beta^2} \lambda_0 e^{\frac{-\lambda_0}{\beta}}
+\frac{1}{\beta^2} \lambda_1 e^{\frac{-\lambda_1}{\beta}}
+\frac{e^{\frac{-1}{\beta}}}{\beta} \\
+&\propto e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
+\lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1} \beta^{-5}
+\end{align*}
+
+## 3)
+
+Next we want to find the full conditionals of $\vect{\theta}$ for later use in the implementation of MCMC algorithms to find the posterior. Let $\vect{\theta}^{-j}$ denote all of vector $\vect{\theta}$ except for the jth element, i.e $\vect{\theta}^{-j} = [\theta^1, \dots, \theta^{j-1}, \theta^{j+1}, \dots, \theta^4]$. The full conditional of element $j$ in component vector $\vect{\theta}$ is defined as
+
+$$ \pi (\theta^j | \vect{\theta}^{-j}) = \frac{\pi(\vect{\theta )}}{\pi (\vect{\theta}^{-j})} \propto  \pi(\vect{\theta )}.$$
+
+Thus, the non-normalised conditional densities of $\theta^j | \vect{\theta}$ can be directly derived from $\pi(\vect{\theta})$ by omitting all multiplicative factors that do not depend on $\theta_j$.
+
+The full conditional of $t_1$ is
+
+$$ \pi(t_1 | \vect x, \lambda_0, \lambda_1, \beta) \propto e^{t_1 (\lambda_1 - \lambda_0)} \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}, \qquad t_1 \in [t_0, t_2].$$
+
+
+
+The full conditional of $t_1$ is not recognized as a known distribution.
+
+The full conditional of $\lambda_0$ is
+
+\begin{equation} \label{eq:fc_lambda0}
+\pi(\lambda_0 | \vect{x}, t_1, \lambda_1, \beta) \propto \lambda_0^{y_0 + 1} e^{-\lambda_0(t_1 - t_0 + \frac{1}{\beta})}, \qquad \lambda_0 \geq 0.
+\end{equation}
+
+
+We recognize the full conditional of $\lambda_0$ as the Gamma$(y_0 + 2, \frac{1}{t_1 - t_0 + \frac{1}{\beta}})$ distribution. Similarily, the full conditional of $\lambda_1$ is
+
+\begin{equation} \label{eq:fc_lambda1}
+\pi(\lambda_1 | \vect{x}, t_1, \lambda_0, \beta) \propto \lambda_1^{y_1 + 1} e^{-\lambda_1(t_2 - t_1 + \frac{1}{\beta})}, \qquad \lambda_1 \geq 0.
+\end{equation}
+
+From this we see that the full conditional of $\lambda_1$ is Gamma$(y_1 + 2, \frac{1}{t_2 - t_1 + \frac{1}{\beta}})$ distributed. Lastly, the expression for the full conditional of $\beta$ is
+
+\begin{equation} \label{eq:fc_beta}
+\pi(\beta | \vect{x}, t_1, \lambda_0, \lambda_1) \propto  \frac{1}{\beta^5} e^{\frac{-(1 + \lambda_0 + \lambda_1)}{\beta}}, \qquad \beta >0.
+\end{equation}
+
+Here $\beta$ is $\textrm{Inverse Gamma}(6, 1 + \lambda_0 + \lambda_1)$ distributed where the first parameter is the shape parameter and the second is the scale parameter. 
+
+
+
+
+## 4)
+
+In this task we want to implement a single site MCMC algorithm for the posterior distribution $\pi(\vect{\theta} | \vect{x})$. Since three out of four full conditionals are known distributions we implement a Hybrid Gibbs sampler (Metropolis-within-Gibbs). This way three out of four components can be sampled very efficiently.
+
+Before we proceed we want to determine some notation. Denote $\vect \theta_i$ be ith component vector in the MCMC algorithm and let $Q(y ^j | \theta_{i-1}^j, \vect \theta_{i-1}^{-j})$ be the proposal distribution for component j at the ith iteration where $y^j$ is the proposal. Here $\vect \theta_{i-1}^{-j} = [\theta_{i}^1, \dots, \theta_{i}^{j-1}, \theta_{i-1}^{j+1}, \dots, \theta_{i-1}^4]$. The corresponding acceptance probability of the proposal for component $j$ at iteration $i$ is denoted $\alpha(y^j | \vect \theta_{i-1}^j,  \theta_{i-1}^{-j})$ and can be expressed as
+
+?????????????????????????????????????????????????????? Should it here be included x behind | as well?
+
+$$\alpha(y^j | \theta_{i-1}^j,  \vect \theta_{i-1}^{-j})
+= \min \left \{
+1, 
+\frac{\pi (y^j |  \vect \theta_{i-1}^{-j})}{\pi (\theta_{i-1}^j |  \vect \theta_{i-1}^{-j})} 
+\frac{Q (\theta_{i-1}^j | y^j,  \vect \theta_{i-1}^{-j})}{Q (y^j |  \theta_{i-1}^j,  \vect \theta_{i-1}^{-j})} 
+\right \}.$$
+
+Note that for readability $\vect x$ is excluded from the given parameter list for the posterior distribution $\pi$, proposal distribution $Q$ and acceptance probability $\alpha$ expressions.
+
+For $\lambda_0, \lambda_1$ and $\beta$ the proposal distributions are given by respectively equations (\ref{eq:fc_lambda0}), (\ref{eq:fc_lambda1}) and (\ref{eq:fc_beta}).
+
+\begin{align*}
+Q(y_{i}^{\lambda_0} | \theta_i^{\lambda_0}, \vect \theta_i^{- \lambda_0})& = \pi (y_{i}^{\lambda_0} | \vect \theta_i^{- \lambda_0}) \propto \lambda_0^{y_0 + 1} e^{-\lambda_0(t_1 - t_0 + \frac{1}{\beta})} 0\\
+Q(y_{i}^{\lambda_1} | \theta_i^{\lambda_1}, \vect \theta_i^{- \lambda_1})& = \pi (y_{i}^{\lambda_1} | \vect \theta_i^{- \lambda_1}) 
+\propto \lambda_1^{y_1 + 1} e^{-\lambda_1(t_2 - t_1 + \frac{1}{\beta})} \\
+Q(y_{i}^{\beta} | \theta_i^{\beta}, \vect \theta_i^{- \beta})& = \pi (y_{i}^{\beta} | \vect \theta_i^{- \beta})
+\propto  \frac{1}{\beta^5} e^{\frac{-(1 + \lambda_0 + \lambda_1)}{\beta}}
+\end{align*}
+
+Since all three parameters are updated iteratively from the corresponding univariate full conditionals the acceptance probabilities are always exactly equal to 1.
+
+\begin{align*}
+\alpha(y_{i}^{\lambda_0} | \theta_i^{\lambda_0}, \vect \theta_i^{- \lambda_0})& = 1 \\
+\alpha(y_{i}^{\lambda_1} | \theta_i^{\lambda_1}, \vect \theta_i^{- \lambda_1})& = 1 \\
+\alpha(y_{i}^{\beta} | \theta_i^{\beta}, \vect \theta_i^{- \beta})& = 1
+\end{align*}
+
+??????????????????????????????? Must these be written again? Listed?
+
+For the parameter $t_1$ we use a uniform random walk proposal distribution,
+
+\begin{align*}
+y_{i}^{t_1} \sim \mathrm{Uniform}(\theta_{i-1}^{t_1} - d, \theta_{i-1}^{t_1} + d) \\
+Q(y_{i}^{t_1} | \theta_i^{t_1}, \vect \theta_i^{- t_1}) = \frac{1}{2d}
+\end{align*}
+
+Here $d$ is a tuning parameter. Since the proposal distribution is symmetric around the current value, that is $Q(y_{i}^{t_1} | \theta_i^{t_1}, \vect \theta_i^{- t_1}) = Q(\theta_i^{t_1} | y_{i}^{t_1}, \vect \theta_i^{- t_1})$ the acceptance probability becomes
+
+\begin{align*}
+\alpha(y_{i}^{t_1} | \theta_i^{t_1}, \vect \theta_i^{- t_1})& = \min \left \{ 1, 
+\frac{\pi (y^{t_1} |  \vect \theta_{i-1}^{-t_1})}{\pi (\theta_{i-1}^{t_1} |  \vect \theta_{i-1}^{-t_1})} 
+\right \}.
+\end{align*}
+
+???????????????????????????????? Blir det bare riktig å rejecte hvis random walk går utenfor?
+
+```{r}
+# function used to sample from full conditional of beta
+sample.beta.full.conditional = function(lambda0, lambda1) {
+  return(1 / rgamma(1, shape = 6, rate = (1 + lambda0 + lambda1)))
+}
+
+#function used to sample from full conditional of lambda0
+sample.lambda0.full.conditional = function(t1, beta,  t0, y) {
+  return(rgamma(1, shape = (y[1] + 2), rate = (t1 - t0 + 1 / beta)))
+}
+
+#function used to sample from full conditional of lambda1
+sample.lambda1.full.conditional = function(t1, beta, t2, y) {
+  return(rgamma(1, shape = (y[2] + 2), rate = (t2 - t1 + 1 / beta)))
+}
+
+#function used to sample a new t1 value using a uniform random walk with Metropolis-Hastings
+# probability for accepting new t1 value. If new step not accepted, returns old value.
+#Implemented on log-form for efficiency and avoiding too large or to small values
+# d is a tuning parameter that determines how large steps can be taken
+sample.t1.random.walk.uniform = function(t1.prev, lambda0, lambda1, d, t0, t2, y.prev, dates) {
+  # get proposal for new t1 value from uniform distribution around current value
+  t1.proposal = runif(1, t1.prev - d, t1.prev + d)
+  
+  # if proposal is outside the allowed range, return the current value of t1
+  if (t1.proposal <= t0 | t1.proposal >= t2) return(list(t1 = t1.prev, y = y.prev, accepted = 0))
+  
+  # function returning the not normalized full conditional of t1 on log-form
+  log.full.conditional.t1 = function(t1, lambda0, lambda1, y) {
+    return(t1 * (lambda1 - lambda0) + (y[1] + 1) * log(lambda0)  + (y[2]+1) * log(lambda1)) 
+  }
+  
+  # find the number of explosions between t0 and t1 (y1) and the number of explosions 
+  # between t1 and t2 (y2)
+  y.proposal = c(sum(dates <= t1.proposal), sum(dates > t1.proposal))
+  
+  #calculate acceptance probability
+  accept.prob = min(exp(log.full.conditional.t1(t1.proposal, lambda0, lambda1, y.proposal) - 
+                          log.full.conditional.t1(t1.prev, lambda0, lambda1, y.prev)), 1)
+  
+  # get a uniform random number between 0 and 1
+  u = runif(1)
+  # Return new propsals if u < acceptance probability
+  if(u < accept.prob) return(list(t1 = t1.proposal, y = y.proposal, accepted = 1))
+  #else return current values
+  else return(list(t1 = t1.prev, y = y.prev, accepted = 0))
+}
+```
+
+```{r}
+# Implements a single site mcmc formula for approximating the posterior distribution of the parameters of interest
+single.mcmc = function(n, K, dates, d, 
+                       t1.initial = runif(1, dates[1], dates[length(dates)]),
+                       beta.initial = 1 / rgamma(1, shape = 2, rate = 1),
+                       lambda0.initial = 1 / rgamma(1, shape = 3, scale = beta.initial),
+                       lambda1.initial = 1 / rgamma(1, shape = 3, scale = beta.initial)) {
+  "
+  Input:
+    -n: number of useful samples after the burn-in period wanted
+    -K: length of the burn-in period
+    -dates: the dates of the explosions (+ start and end date)
+    -d: the maximum step length for the uniform random walk of t1
+    -t1.initial: the initial value of t1. If not provided it is sampled from the prior
+    -beta.initial: the initial value of beta. If not provided it is sampled from the prior
+    -lambda0.initial: the initial value of lambda0. If not provided it is sampled from the
+    prior given beta.initial
+    -lambda1.initial: the initial value of lambda1. If not provided it is sampled from the
+    prior given beta.initial
+    
+  Output:
+    -A list containing
+      -- t1: a vector of sampled t1 values
+      -- beta: a vector of sampled beta values
+      -- lambda0: a vector of sampled lambda0 values
+      -- lambda1: a vector of sampled lambda1 values
+      -- iter = iter
+      -- df.parameters: a data frame containing all of the vectors above as columns in
+      addition to a column with boolean value of TRUE if the observation is a part of the
+      burn-in period
+      -- df.parameters.long: a data frame with the same info as df.parameters, but in long-format
+      -- n: number of useful samples after the burn-in period wanted
+      -- K: length of the burn-in period
+      -- d: the maximum step length for the uniform random walk of t1
+      -- percent.t1.accepted: the percent of proposed t1 values accepted
+  "
+  
+  
+  K = K + 1 # to make space for initial values
+  t0 = dates[1] # extract start date
+  t2 = dates[length(dates)] # extract end date
+  date.explosions = dates[2:(length(dates) - 1)] # remove start and end date
+  # Create vectors to store values
+  t1.values = rep(NA, n+K)
+  lambda0.values = rep(NA, n+K)
+  lambda1.values = rep(NA, n+K)
+  beta.values = rep(NA, n+K)
+  
+  # Add initial values
+  t1.values[1] = t1.initial
+  lambda0.values[1] = lambda0.initial
+  lambda1.values[1] = lambda1.initial
+  beta.values[1] = beta.initial
+  
+  # create y containing y0 and y1
+  y = c(sum(date.explosions <= t1.initial), sum(date.explosions > t1.initial)) 
+  
+  n.accepted = 0 # keep track of number of accepted t1 proposals
+  for (i in 2:(n+K)) {
+    # simulate new t1 value. Get corresponding new y value
+    new.t1.and.y = sample.t1.random.walk.uniform(t1.values[i-1], lambda0.values[i-1], lambda1.values[i-1],
+                                                 d, t0, t2, y, date.explosions)
+    t1.values[i] = new.t1.and.y$t1
+    y = new.t1.and.y$y
+    # keep track of number of accepted t1 proposals
+    n.accepted = n.accepted + new.t1.and.y$accepted
+    # simulate new beta, lambda0 and lambda1 from full conditionals
+    beta.values[i] = sample.beta.full.conditional(lambda0.values[i-1], lambda1.values[i-1])
+    lambda0.values[i] = sample.lambda0.full.conditional(t1.values[i], beta.values[i],  t0, y)
+    lambda1.values[i] = sample.lambda1.full.conditional(t1.values[i], beta.values[i], t2, y)
+  }
+  
+  # Create a vector with the iteration numbers. The initial values correspond to iteration 0.
+  iter = c(seq(0, n+K-1))
+  
+  # Add parameter values and other interesting information to a data frame
+  df.parameters = data.frame(iter = iter, t1 = t1.values, beta = beta.values, lambda0 = lambda0.values,
+                             lambda1 = lambda1.values, burn.in = c(rep(TRUE, K), rep(FALSE, n)))
+  
+  # make the same dataframe on long format
+  df.parameters.long = pivot_longer(df.parameters, c(-iter, -burn.in), names_to = "parameters", values_to = "value")
+  
+  # return everything of interest in a list for easy access
+  return(list(t1 = t1.values, beta = beta.values, lambda0 = lambda0.values, lambda1 = lambda1.values,
+              df.parameters = df.parameters, df.parameters.long = df.parameters.long,
+              n = n, K = K-1, d = d, iter = iter, percent.t1.accepted = n.accepted / (n + K - 1)))
+}
+```
+
+## 5)
+
+In this task we run our single site algorithm implemented in task 4) and evaluate the burn-in and mixing properties of our algorithm.
+
+???????????????????????????????????? How many starting values must we test for and for how many iterations?
+???????????????????????????????????? Must we say that 1940 could be an okay estimate for t1 as well?
+
+```{r run_mcmc_single}
+# run the algorithm for intital values sampled from prior
+set.seed(1)
+single.mc.result = single.mcmc(20000,1000, df.coal$date, 10)
+```
+
+```{r fig_captions5, echo = FALSE}
+# Creating the figure caption
+fig.caption.trace.plot = paste("\\label{fig:trace_plot} Trace plot of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for a burn-in period of 1000 iterations and then 20000 iterations of a hopefully converged single site MCMC algorithm. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(single.mc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(single.mc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(single.mc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(single.mc.result$lambda1[1],3), ". The tuning parameter $d = 10.$", sep = "")
+
+fig.caption.histogram.plot = paste("\\label{fig:histogram_plot} Histogram of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for 20000 iterations after discarding the 1000 burn-in samples. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(single.mc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(single.mc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(single.mc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(single.mc.result$lambda1[1],3), ". The tuning parameter $d = 10.$", sep = "")
+
+fig.caption.autocorrelation.plot = paste("\\label{fig:autocorrelation_plot}Autocorrelation plot of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for 20000 iterations after discarding the 1000 burn-in samples. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(single.mc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(single.mc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(single.mc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(single.mc.result$lambda1[1],3), ". The tuning parameter $d = 10.$", sep = "")
+```
+
+
+```{r, fig.width = 10, fig.height = 4, eval.after = "fig.cap", fig.cap = fig.caption.trace.plot, dependson=c("fig_captions5", "run_mcmc_single")}
+# Plot trace plots of each parameter for a single realization of the single site MCMC
+ggplot(single.mc.result$df.parameters.long, aes(x = iter, y = value)) + geom_line() +
+  facet_wrap(~parameters, scale = "free_y") +
+  geom_vline(aes(xintercept = single.mc.result$K, col = "Cut off point burn in period"), size = 1) +
+  theme(legend.position="bottom") + guides(col = guide_legend("Line")) +
+  xlab("Iteration") + ylab("Value") + ggtitle("Trace plot of the parameters")
+```
+
+From Figure \ref{fig:trace_plot} it appears that the MCMC output has converged to the posterior distribution according to the trace plot. The samples forming a homogene band after the burn-in period (and some time before) indicates convergence. 
+
+```{r, fig.width = 10, fig.height = 4, fig.cap = fig.caption.histogram.plot, dependson="fig_caption5"}
+# Plot histograms of each parameter for a single realization of the single site MCMC
+ggplot(subset(single.mc.result$df.parameters.long, burn.in == FALSE),
+       aes(x = value, y = ..density..)) + geom_histogram(colour = "lightgrey") +
+  facet_wrap(~parameters, scale = "free") + ggtitle("Histogram of parameter values after burn-in period")
+```
+
+```{r, echo = FALSE}
+t1.assumed = 1890
+t0 = df.coal$date[1]
+t2 = df.coal$date[nrow(df.coal)]
+date.explosions = df.coal$date[2:nrow(df.coal)]
+lambda0.estimated = sum(date.explosions <= t1.assumed) / (t1.assumed-t0)
+lambda1.estimated = sum(date.explosions > t1.assumed) / (t2-t1.assumed)
+```
+
+
+From Figure \ref{fig:1a_cumplot} it appears that there is a change in rate of accidents around 1890. Consequently, since the histogram plot of parameter $t_1$ in Figure \ref{fig:histogram_plot} is centered around 1890 and has most of it's samples a distance of plus-minus five years away, it indicates that the simulated values of $t_1$ are reasonable. If we assume that 1890 is the correct value of $t_1$ and calulcate the average rate of accidents between $t_0$ and 1890 then we get a rate of $`r round(lambda0.estimated,3)`$. Similarily, if we calculate the average rate of accidents between $t_0$ and 1890 then we get a rate of $`r round(lambda1.estimated,3)`$. Comparing these values against the corresponding histograms of simulated values in Figure \ref{fig:histogram_plot} it appears that the simulated values of $\lambda_0$ and $\lambda_1$ are reasonable.
+
+Another diagnostic tool is to examine dependencies of successive MCMC samples. From the autocorrelation plots in figure \ref{fig:autocorrelation_plot} we observed that for lag 20 and higher there is almost zero correlation between the samples for $t_1$. Additionally, the correlation is almost zero already for lag 5 for both $\lambda_0$ and $\lambda_1$ samples and lag 3 for $\beta$ samples. 
+
+```{r, fig.width=8, fig.height=4, fig.ncol = 2, out.width = "50%", fig.show = "hold", fig.cap = fig.caption.autocorrelation.plot, dependsupon="fig_caption5"}
+df.parameters.after.burn.in = subset(single.mc.result$df.parameters, burn.in == FALSE)
+# Plotting the autocorrelation functions for the parameter samples
+acf(df.parameters.after.burn.in$t1, main = TeX("Autocorrelation for $t_1$ samples"))
+acf(df.parameters.after.burn.in$beta, main = TeX("Autocorrelation for $\\beta$ samples"))
+acf(df.parameters.after.burn.in$lambda0, main = TeX("Autocorrelation for $\\lambda_0$ samples"))
+acf(df.parameters.after.burn.in$lambda1, main = TeX("Autocorrelation for $\\lambda_1$ samples"))
+```
+
+
+```{r}
+# Finding estimates for effective sample size
+effective.size.single.site.mcmc = effectiveSize(as.mcmc(df.parameters.after.burn.in[, c("t1", "beta", "lambda0", "lambda1")]))
+effective.size.single.site.mcmc
+```
+
+
+A useful measure to compare the performance of MCMC samplers is the effective sample size (ESS).
+
+$$ \mathrm{ESS} = \frac{n}{\tau}, \qquad \tau = 1 + 2 \sum_{k=1}^\infty \rho(k),$$
+where $\tau$ is the autocorrelation time and $\rho(k)$ the autocorrelation at lag $k$. The effective samples size of $t_1, \beta, \lambda_0$ and $\lambda_1$ is respectively $`r round(effective.size.single.site.mcmc[1], 2)`$, $`r round(effective.size.single.site.mcmc[2], 2)`$, $`r round(effective.size.single.site.mcmc[3], 2)`$ and $`r round(effective.size.single.site.mcmc[4], 2)`$. In compliance with the autocorrelation plots, the effective sample size of $t_1$ is much smaller than the other parameters. This is due to the samples of $t_1$ being much more correlated.
+
+The diagnostics above was done only for a single MCMC realization. To increase our certainty that the chain actually has converged to the posterior distrbution we will try to run it again from multiple initial values far away from the values it converged to above.
+
+```{r fig_captions5_multiple, echo = FALSE}
+# Creating the figure caption
+fig.caption.trace.plot.multiple = paste("\\label{fig:trace_plot_multiple} Trace plot of the realizations of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for two different sets of initial values. Each of the chains are run for 20000 iterations with tuning parameter $d = 10$. The initial values for realization 2 were; $t_1^{\\textrm{initial}} =$ ", 1960, ", $\\beta^{\\textrm{initial}} =$ ", 5 , ", $\\lambda_0^{\\textrm{initial}} =$ ", 10, ", $\\lambda_1^{\\textrm{initial}} =$ ", 10, ". The initial values for realization 3 were; $t_1^{\\textrm{initial}} =$ ", 1855, ", $\\beta^{\\textrm{initial}} =$ ", 5 , ", $\\lambda_0^{\\textrm{initial}} =$ ", 0.1, ", $\\lambda_1^{\\textrm{initial}} =$ ", 10, ".",sep = "")
+```
+
+
+```{r, fig.width=10, fig.height = 5, dependson="fig_captions5_multiple", fig.cap = fig.caption.trace.plot.multiple}
+single.mc.result1 = single.mcmc(20000,0, df.coal$date, 10, t1.initial = 1960, beta.initial = 5, lambda0.initial = 10, lambda1.initial = 10)
+single.mc.result2 = single.mcmc(20000,0, df.coal$date, 10, t1.initial = 1855, beta.initial = 5, lambda0.initial = 0.1, lambda1.initial = 10)
+
+set.seed(1)
+df.parameters.single.mc.multiple = rbind(single.mc.result1$df.parameters.long, single.mc.result2$df.parameters.long)
+df.parameters.single.mc.multiple$realization = c(rep("1", nrow(single.mc.result1$df.parameters.long)), rep("2", nrow(single.mc.result2$df.parameters.long)))
+
+# Plot trace plots of each parameter for a single realization of the single site MCMC
+ggplot(df.parameters.single.mc.multiple, aes(x = iter, y = value, col = realization)) + geom_line(alpha = 0.75) +
+  facet_wrap(~parameters, scale = "free_y") +
+  theme(legend.position="bottom") + guides(col = guide_legend("Lines")) +
+  xlab("Iteration") + ylab("Value") + 
+  
+  ggtitle("Trace plot of the parameters for two differently chosen initial conditions") +
+  scale_color_manual(values = c("black", "lightblue", "red"), labels = c("Realization 2", "Realization 3", "Cut off point burn in period"))
+```
+
+
+??????????????????? should we get rid of the burn-in period for these plots?
+
+In Figure \ref{fig:trace_plot_multiple} we see an example where the burn-in of 1000 iterations is not enough to converge to the posterior distribution. Even though both chains appear to converge to the same distribution, it is not until around iteration 2000 that realization 1 appear to have converged. For the previous iterations it is stuck at a local minima for $t_1$ around 1940. This illustrates the importance of running the MCMC algorithm long enough and from multiple initial conditions to determine if convergence has actually been reached. In the end these two new realizations seem to converge to the same distribution, supporting our belief that we for the first realization reached convergence during our burn-in period.
+
+
+## 6)
+
+For this task we explore how the tuning parameter $d$ influences the length of the burn-in and the mixing properties of the simulated Markov chain. To do this we will run the algorithm fpr several different $d$-values and from three different starting locations. The starting locations will be drawn randomly from the priors, but by setting a seed for each one we will ensure the same three intial values for each $d$-value.
+
+
+```{r multiple_d_function}
+# set the d-values which are to be evaluated. Divide into two list to be able to get output on two pages
+d.values.low = c(1,3,5)
+d.values.high = c(10,20,100)
+# set number of iterations performed
+n = 20000
+K = 0
+# set the different seeds for the initial values. Chosen such that t_1 begins with a low, medium and high value
+seeds = c(12,4,7)
+
+# A function that runs the MCMC single site algorithm and plots. Returns a string to be used as figure caption
+plot.for.mutiple.d = function(n, K, d.values, fig.label) {
+  for (d in d.values) {
+    # set seeds and run for three different initial conditions
+    set.seed(seeds[1])
+    single.mc.test.d.1 = single.mcmc(n,K, df.coal$date, d = d)
+    set.seed(seeds[2])
+    single.mc.test.d.2 = single.mcmc(n,K, df.coal$date, d = d)
+    set.seed(seeds[3])
+    single.mc.test.d.3 = single.mcmc(n,K, df.coal$date, d = d)
+    # Combine the realizations to a single data frame for plotting
+    df.parameters.test.d = rbind(single.mc.test.d.1$df.parameters.long,
+                                    single.mc.test.d.2$df.parameters.long,
+                                    single.mc.test.d.3$df.parameters.long)
+    # add a column that keeps track of which realizaiton the observations belong to
+    df.parameters.test.d$realization = c(rep("1", n + K + 1), rep("2", n + K + 1), rep("3", n + K + 1))
+    # create the plot
+    p = ggplot(df.parameters.test.d, aes(x = iter, y = value, col = realization)) + geom_line(alpha = 0.75) +
+      facet_wrap(~parameters, scale = "free_y", ncol = 4) +
+      theme(legend.position="bottom") + guides(col = guide_legend("Realizations")) +
+      xlab("Iteration") + ylab("Value") +
+  
+      ggtitle(paste("Trace plot of the parameters for three differently chosen",
+                    "initial conditions and d =", d),
+              subtitle = TeX(paste("Average acceptance probability for $t_1$:", 
+                               round((single.mc.test.d.1$percent.t1.accepted +
+                                        single.mc.test.d.2$percent.t1.accepted +
+                                        single.mc.test.d.3$percent.t1.accepted) / 3,
+                                      3)))) +
+      scale_color_manual(values = c("black", "lightblue", "lightgrey"), labels = c("1", "2", "3"))
+    # print the plot
+    print(p)
+  }
+  # create figure caption. Written in a specific format to be able to show everythin in rmarkdown
+fig.caption.d = paste("\\label{", fig.label, "}Trace plot of the parameters for tuning ",
+
+                      "parameter $d \\in [$", toString(d.values.low), "$]$ and three different ",
+                      
+                      "initial conditions. The single site MCMC algorithm was run for ", n, " iterations. ",
+                      
+                      "The initial values for realization 1 were; $t_1^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.1$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.1$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.1$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.1$lambda1[1],2), ". ",
+
+                      "The initial values for realization 2 were; $t_1^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.2$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.2$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.2$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.2$lambda1[1],2), ". ",
+
+                      "The initial values for realization 3 were; $t_1^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.3$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.3$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.3$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+                      
+                      round(single.mc.test.d.3$lambda1[1],2), ".", sep = "")
+  # return figure caption
+  return(fig.caption.d)
+}
+```
+
+
+```{r, fig.width = 10, fig.height = 3, out.width = "100%", dependson = "multiple_d_function", fig.show = "hold", fig.cap = fig.caption.d.low, eval.after = "fig.cap"}
+# plot for the low d values
+fig.caption.d.low = plot.for.mutiple.d(n, K, d.values.low, fig.label = "fig:trace_plot_low_d")
+```
+
+
+
+```{r fig_caption_d, fig.width = 10, fig.height = 3, out.width="100%", fig.show = "hold", eval.after = "fig.cap", dependson = "multiple_d_function", fig.cap = fig.caption.d.high}
+# plot for the high d values
+fig.caption.d.high = plot.for.mutiple.d(n, K, d.values.high, fig.label = "fig:trace_plot_high_d")
+```
+
+
+From Figure \ref{fig:trace_plot_low_d} we observe that for $d \leq 5$ the algorithm seem to take a lot of time to get out of a local minimas and initial conditions. For $d = 5$ the burn-in period appear to end after 3000 iterations, while for $d = 3$ and $d = 1$ the chains seem to still be in the burn-in period after 20000 iterations. From Figure \ref{fig:trace_plot_high_d} we observe a trend that higher $d$-values result in shorter burn-in periods. For $d = 10$ the burn-in period appear to usually be over in less than or equal to 1000 iterations, while $d = 20$ and $d = 100$ reach convergence even faster. Although convergence is reached faster for higher $d$-values we see that there is a trade-off against acceptance probability where higher $d$ also decreases the effective sample size due to higher correlation. By inspection, our initial choice of $d = 10$ therefore seem to be a reasonable choice with an burn-in period usually around 1000 iterations and an acceptance probability of $t_1$ equal to 0.249. Figure \ref{fig:trace_plot_low_d} and \ref{fig:trace_plot_high_d} support our belief that the limiting distribution is not influenced by the tuning parameter, just how fast it converges.
+
+## 7)
+
+??????????????????????????????????????????????????? Must we write what a single and block MCMC is?
+
+Next we define and implement a block Metropolis–Hastings algorithm for $\pi(\vect \theta | \vect x)$ using the following two block proposals. The first version uses a block proposal for $(t_1, \lambda_0, \lambda_1)$ keeping $\beta$ unchanged. We generate the potential new values $(\tilde t_1, \lambda_0, \lambda_1)$ by first generating $\tilde t_1$ from a normal distribution cented at the current value of $t_1$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1)$ from their joint full conditionals inserted the potential new value $\tilde t_1$, i.e $\pi(\lambda_0, \lambda_1 | \vect x, \tilde t_1, \beta)$.
+
+?????????????????????????????????????????++ is lambda0 and lambda 1 independent (joint conditional)
+
+As $\lambda_0$ and $\lambda_1$ are independent given $\beta$ and $t_1$ their joint full conditional is
+
+\begin{align*}
+\pi(\lambda_0, \lambda_1 | \vect x, t_1, \beta)
+&= \pi(\lambda_0 | \vect{x}, t_1, \lambda_1, \beta) \pi(\lambda_1 | \vect{x}, t_1, \lambda_0, \beta) \\
+&\propto \lambda_0^{y_0 + 1} e^{-\lambda_0(t_1 - t_0 + \frac{1}{\beta})}  \lambda_1^{y_1 + 1} e^{-\lambda_1(t_2 - t_1 + \frac{1}{\beta})}, \qquad  \lambda_0 \geq 0, \lambda_1 \geq 0.
+\end{align*}
+
+Using that the joint conditional of $(t_1, \lambda_0, \lambda_1)$ is proportional to the full posterior, we get that their joint full conditional is proportional to
+
+\begin{align*}
+\pi(t_1, \lambda_0, \lambda_1 | \vect x, \beta)
+&= \frac{\pi(\lambda_0, \lambda_1, t_1, \beta | \vect x)}{\pi(\beta | \vect x)}
+\propto \pi(\lambda_0, \lambda_1, t_1, \beta | \vect x) \\
+&\propto e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
+\lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}, \qquad  \lambda_0 \geq 0, \lambda_1 \geq 0, t_1 \in [t_0, t_2].
+\end{align*}
+
+The proposal distribution of $t_1$ is a normally distributed random walk 
+
+\begin{align*}
+y_i^{t_1} &\sim \mathcal{N} (\theta_{i-1}, \sigma^2) 
+ Q(y_i^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_i^{-t_1})
+\end{align*}
+
+!!!!!!!!!!!!!!!!!!!! must write acceptance probabilities and proposal functions.
+
+
+```{r}
+#function used to sample a new t1, lambda0 and lambda1 value using a block proposal.
+# First a new t1 is proposed from a normal distribution centered at the current value of t1.
+# Thereafter lambda0 and lambda1 are generated from their joint full conditionals given beta and proposed t1.
+# Lastly the proposals are either accepted or rejected. If rejected, the current values are returned.
+# Implemented on log-form for efficiency and avoiding too large or to small values
+# sigma is a tuning parameter that determines how large steps sizes are usually taken by t1
+sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda1.prev, beta, sigma, t0, t2, y.prev, dates) {
+  # get proposal for new t1 value from normal distribution around current value
+  t1.proposal = rnorm(1, mean = t1.prev, sd = sigma)
+  #print(paste("t1.prev=", t1.prev, "t0=", t0, "t2=", t2, "t1.proposal=", t1.proposal))
+  # if proposal is outside the allowed range, return the current value of t1, lambda0 and lambda1
+  if (t1.proposal <= t0 | t1.proposal >= t2) return(list(t1 = t1.prev, lambda0 = lambda0.prev, lambda1 = lambda1.prev,
+                                                         y = y.prev, accepted = 0))
+
+  # find new y for given t1 propsal
+  y.proposal = c(sum(dates <= t1.proposal), sum(dates > t1.proposal))
+  # get proposal for lambda0 and lambda1 from joint conditional given t1.proposal and beta
+  lambda0.proposal = sample.lambda0.full.conditional(t1.proposal, beta, t0, y.proposal)
+  lambda1.proposal = sample.lambda1.full.conditional(t1.proposal, beta, t2, y.proposal)
+  
+
+  # function returning the not normalized joint conditional of t1, lambda0 and lambda1 on log-form
+  log.joint.conditional.t1.lambda0.lambda1 = function(t1, lambda0, lambda1, y) {
+    return(- lambda0 * (t1 - t0) - lambda1 * (t2 - t1) - (lambda0 + lambda1 + 1) / beta +
+             (y[1] + 1) * log(lambda0) + (y[2] + 1) * log(lambda1)) 
+  }
+  
+    # print(paste("y.proposal=[", toString(y.proposal), "], accept.prob =", 
+    #             exp(log.joint.conditional.t1.lambda0.lambda1(t1.proposal, lambda0.proposal, lambda1.proposal, y.proposal) - 
+    #                   log.joint.conditional.t1.lambda0.lambda1(t1.prev, lambda0.prev, lambda1.prev, y.prev))))
+    # print(paste(log.joint.conditional.t1.lambda0.lambda1(t1.proposal, lambda0.proposal, lambda1.proposal, y.proposal),
+    #             log.joint.conditional.t1.lambda0.lambda1(t1.prev, lambda0.prev, lambda1.prev, y.prev)))
+  #calculate acceptance probability
+  accept.prob = min(exp(log.joint.conditional.t1.lambda0.lambda1(t1.proposal, lambda0.proposal, lambda1.proposal, y.proposal) - 
+                          log.joint.conditional.t1.lambda0.lambda1(t1.prev, lambda0.prev, lambda1.prev, y.prev)), 1)
+  #print(accept.prob)
+  # get a uniform random number between 0 and 1
+  u = runif(1)
+  # Return new propsals if u < acceptance probability
+  if(u < accept.prob) return(list(t1 = t1.proposal, lambda0 = lambda0.proposal, lambda1 = lambda1.proposal,
+                                  y = y.proposal, accepted = 1))
+  #else return current values
+  else return(list(t1 = t1.prev, lambda0 = lambda0.prev, lambda1 = lambda1.prev, y = y.prev, accepted = 0))
+}
+```
+
+```{r}
+# Implements a block mcmc formula for approximating the posterior distribution of the parameters of interest
+block.mcmc = function(n, K, dates, sigma, 
+                      t1.initial = runif(1, dates[1], dates[length(dates)]),
+                      beta.initial = 1 / rgamma(1, shape = 2, rate = 1),
+                      lambda0.initial = 1 / rgamma(1, shape = 3, scale = beta.initial),
+                      lambda1.initial = 1 / rgamma(1, shape = 3, scale = beta.initial),
+                      block.proposal = "t1.lambda0.lambda1") {
+  "
+  Input:
+    -n: number of useful samples after the burn-in period wanted
+    -K: length of the burn-in period
+    -dates: the dates of the explosions (+ start and end date)
+    -sigma: the standard error of the normally distributed random walk of t1 centered around
+    the current value
+    -t1.initial: the initial value of t1. If not provided it is sampled from the prior
+    -beta.initial: the initial value of beta. If not provided it is sampled from the prior
+    -lambda0.initial: the initial value of lambda0. If not provided it is sampled from the
+    prior given beta.initial
+    -lambda1.initial: the initial value of lambda1. If not provided it is sampled from the
+    prior given beta.initial
+    -blokc.proposal: which block proposal is to be used in the algorithm
+    
+  Output:
+    -A list containing
+      -- t1: a vector of sampled t1 values
+      -- beta: a vector of sampled beta values
+      -- lambda0: a vector of sampled lambda0 values
+      -- lambda1: a vector of sampled lambda1 values
+      -- iter = iter
+      -- df.parameters: a data frame containing all of the vectors above as columns in
+      addition to a column with boolean value of TRUE if the observation is a part of the
+      burn-in period
+      -- df.parameters.long: a data frame with the same info as df.parameters, but in long-format
+      -- n: number of useful samples after the burn-in period wanted
+      -- K: length of the burn-in period
+      -- d: the maximum step length for the uniform random walk of t1
+      -- percent.t1.accepted: the percent of proposed t1 values accepted
+  "
+  
+  K = K + 1 # to make space for initial values
+  t0 = dates[1] # extract start date
+  t2 = dates[length(dates)] # extract end date
+  date.explosions = dates[2:(length(dates) - 1)] # remove start and end date
+  # Create vectors to store values
+  t1.values = rep(NA, n+K)
+  lambda0.values = rep(NA, n+K)
+  lambda1.values = rep(NA, n+K)
+  beta.values = rep(NA, n+K)
+  
+  # Add initial values
+  t1.values[1] = t1.initial
+  lambda0.values[1] = lambda0.initial
+  lambda1.values[1] = lambda1.initial
+  beta.values[1] = beta.initial
+  
+  # create y containing y0 and y1
+  y = c(sum(date.explosions <= t1.initial), sum(date.explosions > t1.initial)) 
+  
+  n.accepted.block = 0 # keep track of number of accepted block proposals
+  n.accepted.t1 = 0 # keep track of number of accepted t1 proposals (if applicable)
+  for (i in 2:(n+K)) {
+    if (block.proposal == "t1.lambda0.lambda1") {
+      # sample new beta value from full conditional distribution
+      beta.values[i] = sample.beta.full.conditional(lambda0.values[i-1], lambda1.values[i-1])
+      
+      # simulate new t1, lambda0 and lambda1 value. Get corresponding new y value
+      new.block.variables = 
+        sample.block.t1.normal.walk.and.lambdas(t1.values[i-1], lambda0.values[i-1], lambda1.values[i-1],
+                                                beta.values[i], sigma, t0, t2, y, dates)
+      t1.values[i] = new.block.variables$t1
+      lambda0.values[i] = new.block.variables$lambda0
+      lambda1.values[i] = new.block.variables$lambda1
+      y = new.block.variables$y
+      # keep track of number of accepted block proposals
+      n.accepted.block = n.accepted.block + new.block.variables$accepted
+      n.accepted.t1 = NA # not applicable as t1 is included in block sampling
+    }
+  }
+  
+  # Create a vector with the iteration numbers. The initial values correspond to iteration 0.
+  iter = c(seq(0, n+K-1))
+  
+  # Add parameter values and other interesting information to a data frame
+  df.parameters = data.frame(iter = iter, t1 = t1.values, beta = beta.values, lambda0 = lambda0.values,
+                             lambda1 = lambda1.values, burn.in = c(rep(TRUE, K), rep(FALSE, n)))
+  
+  # make the same dataframe on long format
+  df.parameters.long = pivot_longer(df.parameters, c(-iter, -burn.in), names_to = "parameters", values_to = "value")
+  
+  # return everything of interest in a list for easy access
+  return(list(t1 = t1.values, beta = beta.values, lambda0 = lambda0.values, lambda1 = lambda1.values,
+              df.parameters = df.parameters, df.parameters.long = df.parameters.long,
+              n = n, K = K-1, sigma = sigma, iter = iter, 
+              percent.t1.accepted = n.accepted.t1 / (n + K - 1),
+              percent.block.accepted = n.accepted.block / (n + K -1)))
+}
+```
+
+
+```{r}
+n = 10000
+K = 0
+sigma = 5
+df = block.mcmc(n, K, df.coal$date, sigma, block.proposal = "t1.lambda0.lambda1")
+plot(df$iter, df$t1, type ="l")
+?hist
+```
+
+
+
+
+
+
+###########################
+# Exercise B:
+
+Loading the dataset from github
+```{r}
+library(ggplot2)
+
+y <- read.csv("https://raw.githubusercontent.com/johanage/TMA4300/master/Gaussian%20Data.csv", header=FALSE)
+head(y, n=length(y[,1]))
+ggplot(y, aes(x=seq(length(y[,1])), y=y[,1]) ) +
+  geom_point()
+```
+
+
+Our main inferential interest lies in the posterior marginal for the smooth effect $\Pi(\eta (t)|y), t = 1, . . . , T.$
+
+1. Explain why this model is a latent Gaussian model and why it is possible to use INLA to estimate the
+parameters.
+
+
+A latent variable model relates a set of observable variables to a set of inferred variables. A latent Gaussian model is a model which infers a variable based on observed variables with that have a Gaussian distribution.
+
+
+2. Define and implement a block Gibbs sampling algorithm for $f(\eta, \Theta|y)$ using the following two (block)
+proposals:
+Propose a new value for $\Theta$ from the full conditional $\Pi(\Theta|\eta, y)$
+Propose a new value for the vector $\eta$ from the full conditional $\Pi(\eta|\Theta, y)$
+Use the samples to get an estimate for the posterior marginal for the hyperparameter $\Pi(\Theta|y)$
+Use the samples to get an estimate of the smooth effect using the mean and pointwise a $95\%$ confidence
+bound around the mean.
+
+
+```{r}
+# gibbs_sampling = function(precision_matrix, pi_f_gtheta, n_samples){
+#   theta = 1
+#   Q = matrix(NA, nrow = n_samples, ncol = n_samples){
+#     for(i in 1:n_samples){
+#       for(j in 1:n_samples){
+#         break
+#       }
+#       break
+#     }
+#   }
+# 
+# }
+```
+
+
+3. We want to approximate the posterior marginal for the hyperparameter $\Theta, \Pi(\Theta|y)$ using the INLA
+scheme. We start from:
+\begin{equation}
+\Pi(\Theta|y) \propto \frac{\Pi(y|\eta, \Theta)\Pi(\eta|\Theta)\Pi(\Theta)}{\Pi(\eta|\Theta, y)}
+\end{equation}
+
+Note that since the likelihood is Gaussian then also $\Pi(\eta|\Theta, y)$ is Gaussian.
+Consider a grid of value between 0 and 6 and use 5 to construct an approximation for $\Pi(\Theta|y)$. Compare your
+result with the MCMC estimate you obtained in point 1)
+4. We now want to implement the next step in the INLA scheme, the approximation of the marginal
+posterior for the smooth effect, $\Pi(\eta_i|y)$.
+We have that:
+\begin{equation}
+\pi(\eta_i|y) = \int \pi(\eta_i|y, \Theta)\Pi(\Theta|y)d\Theta
+\end{equation}
+
+Use the grid of $\Theta$ value from point 2) to approximate the integral above for $i = 10$. Compare your approximation
+for $\Pi(\eta_i|y)$ with the estimation obtained in point 1) via Gibbs sampling.
+
