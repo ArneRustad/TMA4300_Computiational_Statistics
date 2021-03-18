@@ -10,6 +10,8 @@ header-includes:
    - \usepackage{subfig}
 ---
 
+git@github.com:ArneRustad/TMA4300_Computiational_Statistics.git
+
 \newcommand{\vect}[1]{\ensuremath{\boldsymbol{\mathbf{#1} }}}
 \newcommand{\matr}[1]{\ensuremath{\boldsymbol{\mathbf{#1} }}}
 \newcommand{\Var}{\textrm{Var}}
@@ -951,7 +953,7 @@ sample.block.beta.normal.walk.and.lambdas =
 ```{r}
 # Implements a block mcmc formula for approximating the posterior distribution of the parameters of interest.
 # Using two different 
-block.mcmc = function(n, K, dates, sigma, d,
+block.mcmc = function(n, K, dates, sigma.t1, sigma.beta1,
                       t1.initial = runif(1, dates[1], dates[length(dates)]),
                       beta.initial = 1 / rgamma(1, shape = 2, rate = 1),
                       lambda0.initial = 1 / rgamma(1, shape = 3, scale = beta.initial),
@@ -1012,16 +1014,24 @@ block.mcmc = function(n, K, dates, sigma, d,
   n.accepted.t1 = 0 # keep track of number of accepted t1 proposals (if applicable)
   for (i in 2:(n+K)) {
     if (block.proposal == "t1.lambda0.lambda1") {
-      # sample new beta value from full conditional distribution
-      beta.values[i] = sample.beta.full.conditional(lambda0.values[i-1], lambda1.values[i-1])
-      
-      # simulate new t1, lambda0 and lambda1 value. Get corresponding new y value
+      # simulate new t1, lambda0 and lambda1 value from first block sample. Get corresponding new y value
       new.block.variables = 
         sample.block.t1.normal.walk.and.lambdas(t1.values[i-1], lambda0.values[i-1], lambda1.values[i-1],
                                                 beta.values[i], sigma, t0, t2, y, dates)
       t1.values[i] = new.block.variables$t1
       lambda0.values[i] = new.block.variables$lambda0
       lambda1.values[i] = new.block.variables$lambda1
+      
+      # simulate new beta, lambda0 and lambda1 value. Get corresponding new y value
+      new.block.variables = sample.block.beta.normal.walk.and.lambdas(beta.values[i-1], lambda0.values[i-1],
+                                                                      lambda1.values[i-1], t1.values[i], sigma, t0,
+                                                                      t2, y, dates)
+        
+      beta.values[i] = new.block.variables$beta
+      lambda0.values[i] = new.block.variables$lambda0
+      lambda1.values[i] = new.block.variables$lambda1
+      
+      
       y = new.block.variables$y
       # keep track of number of accepted block proposals
       n.accepted.block = n.accepted.block + new.block.variables$accepted
