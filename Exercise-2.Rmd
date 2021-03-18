@@ -885,11 +885,12 @@ sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda
 
 ```{r}
 #function used to sample a new beta, lambda0 and lambda1 value using a block proposal.
-# First a new beta is proposed from a normal distribution centered at the current value of t1.
+# First a new beta is proposed from a normal distribution centered at the current value of beta.
 # Thereafter lambda0 and lambda1 are generated from their joint full conditionals given t1 and proposed beta.
 # Lastly the proposals are either accepted or rejected. If rejected, the current values are returned.
 # Implemented on log-form for efficiency and avoiding too large or to small values
-# sigma is a tuning parameter that determines how large steps sizes are usually taken by beta
+# sigma.beta is a tuning parameter that determines how large steps sizes are usually taken by beta
+# sigma.t1 is a tuning parameter that determines how large step sizes are usually taken by t1
 sample.block.beta.normal.walk.and.lambdas = 
   function(beta.prev, lambda0.prev, lambda1.prev, t1, sigma, t0, t2, y, dates) {
   # get proposal for new beta value from normal distribution around current value
@@ -948,13 +949,14 @@ sample.block.beta.normal.walk.and.lambdas =
 
 
 ```{r}
-# Implements a block mcmc formula for approximating the posterior distribution of the parameters of interest
-block.mcmc = function(n, K, dates, sigma, d = NULL,
+# Implements a block mcmc formula for approximating the posterior distribution of the parameters of interest.
+# Using two different 
+block.mcmc = function(n, K, dates, sigma, d,
                       t1.initial = runif(1, dates[1], dates[length(dates)]),
                       beta.initial = 1 / rgamma(1, shape = 2, rate = 1),
                       lambda0.initial = 1 / rgamma(1, shape = 3, scale = beta.initial),
-                      lambda1.initial = 1 / rgamma(1, shape = 3, scale = beta.initial),
-                      block.proposal = "t1.lambda0.lambda1") {
+                      lambda1.initial = 1 / rgamma(1, shape = 3, scale = beta.initial)
+                      ) {
   "
   Input:
     -n: number of useful samples after the burn-in period wanted
@@ -987,11 +989,6 @@ block.mcmc = function(n, K, dates, sigma, d = NULL,
       -- d: the maximum step length for the uniform random walk of t1
       -- percent.t1.accepted: the percent of proposed t1 values accepted
   "
-  # If d is needed, check that d is provided as input
-  if (block.proposal == "beta.lambda0.lambda1" & is.null(d)) {
-    stop("For this method d must be provided as an input parameter")
-  }
-  
   K = K + 1 # to make space for initial values
   t0 = dates[1] # extract start date
   t2 = dates[length(dates)] # extract end date
@@ -1076,18 +1073,9 @@ block.mcmc = function(n, K, dates, sigma, d = NULL,
 n = 1000
 K = 0
 sigma = 5
-df = block.mcmc(n, K, df.coal$date, sigma, block.proposal = "t1.lambda0.lambda1")
-plot(df$iter, df$t1, type ="l")
 ```
 
-```{r}
-n = 1000
-K = 0
-sigma = 1
-d = 2
-df = block.mcmc(n, K, df.coal$date, sigma, d, block.proposal = "beta.lambda0.lambda1")
-plot(df$iter, df$t1, type ="l")
-```
+
 
 
 
