@@ -493,20 +493,23 @@ In Figure \ref{fig:trace_plot_multiple} we see an example where the burn-in of 1
 
 ## 6)
 
-For this task we explore how the tuning parameter $d$ influences the length of the burn-in and the mixing properties of the simulated Markov chain. To do this we will run the algorithm fpr several different $d$-values and from three different starting locations. The starting locations will be drawn randomly from the priors, but by setting a seed for each one we will ensure the same three intial values for each $d$-value.
+For this task we explore how the tuning parameter $d$ influences the length of the burn-in and the mixing properties of the simulated Markov chain. To do this we will run the algorithm for several different $d$-values and from three different starting locations. The starting locations will be drawn randomly from the priors, but by setting a seed for each one we will ensure the same three intial values for each $d$-value.
 
 
 ```{r multiple_d_function}
-# set the d-values which are to be evaluated. Divide into two list to be able to get output on two pages
+# set the d-values which are to be evaluated. 
+# Divide into two list to be able to get output on two pages
 d.values.low = c(1,3,5)
 d.values.high = c(10,20,100)
 # set number of iterations performed
 n = 20000
 K = 0
-# set the different seeds for the initial values. Chosen such that t_1 begins with a low, medium and high value
+# set the different seeds for the initial values. 
+# Chosen such that t_1 begins with a low, medium and high value
 seeds = c(12,4,7)
 
-# A function that runs the MCMC single site algorithm and plots. Returns a string to be used as figure caption
+# A function that runs the MCMC single site algorithm and plots.
+# Returns a string to be used as figure caption
 plot.for.mutiple.d = function(n, K, d.values, fig.label) {
   for (d in d.values) {
     # set seeds and run for three different initial conditions
@@ -521,10 +524,12 @@ plot.for.mutiple.d = function(n, K, d.values, fig.label) {
                                     single.mc.test.d.2$df.parameters.long,
                                     single.mc.test.d.3$df.parameters.long)
     # add a column that keeps track of which realizaiton the observations belong to
-    df.parameters.test.d$realization = rep(c("1","2","3"), each = nrow(single.mc.test.d.1$df.parameters.long))
+    df.parameters.test.d$realization = rep(c("1","2","3"),
+                                           each = nrow(single.mc.test.d.1$df.parameters.long))
     # create the plot
-    p = ggplot(df.parameters.test.d, aes(x = iter, y = value, col = realization)) + geom_line(alpha = 0.75) +
-      facet_wrap(~parameters, scale = "free_y", ncol = 4) +
+    p = ggplot(df.parameters.test.d, aes(x = iter, y = value, col = realization)) +
+      
+      geom_line(alpha = 0.75) + facet_wrap(~parameters, scale = "free_y", ncol = 4) +
       theme(legend.position="bottom") + guides(col = guide_legend("Realizations")) +
       xlab("Iteration") + ylab("Value") +
   
@@ -543,39 +548,39 @@ plot.for.mutiple.d = function(n, K, d.values, fig.label) {
   # create figure caption. Written in a specific format to be able to show everythin in rmarkdown
 fig.caption.d = paste("\\label{", fig.label, "}Trace plot of the parameters for tuning ",
 
-                      "parameter $d \\in [$", toString(d.values.low), "$]$ and three different ",
-                      
-                      "initial conditions. The single site MCMC algorithm was run for ", n, " iterations. ",
-                      
-                      "The initial values for realization 1 were; $t_1^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.1$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.1$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.1$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.1$lambda1[1],2), ". ",
+    "parameter $d \\in [$", toString(d.values.low), "$]$ and three different ",
+    
+    "initial conditions. The single site MCMC algorithm was run for ", n, " iterations. ",
+    
+    "The initial values for realization 1 were; $t_1^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.1$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.1$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.1$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.1$lambda1[1],2), ". ",
 
-                      "The initial values for realization 2 were; $t_1^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.2$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.2$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.2$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.2$lambda1[1],2), ". ",
+    "The initial values for realization 2 were; $t_1^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.2$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.2$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.2$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.2$lambda1[1],2), ". ",
 
-                      "The initial values for realization 3 were; $t_1^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.3$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.3$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.3$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
-                      
-                      round(single.mc.test.d.3$lambda1[1],2), ".", sep = "")
+    "The initial values for realization 3 were; $t_1^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.3$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.3$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.3$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+    
+    round(single.mc.test.d.3$lambda1[1],2), ".", sep = "")
   # return figure caption
   return(fig.caption.d)
 }
@@ -595,11 +600,11 @@ fig.caption.d.high = plot.for.mutiple.d(n, K, d.values.high, fig.label = "fig:tr
 ```
 
 
-From Figure \ref{fig:trace_plot_low_d} we observe that for $d \leq 5$ the algorithm seem to take a lot of time to get out of a local minimas and initial conditions. For $d = 5$ the burn-in period appear to end after 3000 iterations, while for $d = 3$ and $d = 1$ the chains seem to still be in the burn-in period after 20000 iterations. From Figure \ref{fig:trace_plot_high_d} we observe a trend that higher $d$-values result in shorter burn-in periods. For $d = 10$ the burn-in period appear to usually be over in less than or equal to 1000 iterations, while $d = 20$ and $d = 100$ reach convergence even faster. Although convergence is reached faster for higher $d$-values we see that there is a trade-off against acceptance probability where higher $d$ also decreases the effective sample size due to higher correlation. By inspection, our initial choice of $d = 10$ therefore seem to be a reasonable choice with an burn-in period usually around 1000 iterations and an acceptance probability of $t_1$ around 0.25. Figure \ref{fig:trace_plot_low_d} and \ref{fig:trace_plot_high_d} support our belief (and theory) that the limiting distribution is not influenced by the tuning parameter, just how fast it converges.
+From Figure \ref{fig:trace_plot_low_d} we observe that for $d \leq 5$ the algorithm seem to take a lot of time to get out of a local maximima due to starting with initial conditions far away from the likely values according to the posterior distributions. For $d = 5$ the burn-in period appear to end after 3000 iterations, while for $d = 3$ and $d = 1$ the chains seem to still be in the burn-in period after 20000 iterations for the realizations starting with initial $t_1$-values as $1960$. From Figure \ref{fig:trace_plot_low_d} and \ref{fig:trace_plot_high_d} we observe a trend that higher $d$-values result in shorter burn-in periods. For $d = 10$ the burn-in period appear to usually be over in less than or equal to 1000 iterations, while $d = 20$ and $d = 100$ reach convergence even faster. Although convergence is reached faster for higher $d$-values we see that there is a trade-off against acceptance probability where higher $d$ also decreases the effective sample size due to higher correlation. By inspection, our initial choice of $d = 10$ therefore seem to be a reasonable choice with an burn-in period usually around 1000 iterations and an acceptance probability of $t_1$ around 0.25. Figure \ref{fig:trace_plot_low_d} and \ref{fig:trace_plot_high_d} support our belief (and theory) that the limiting distribution is not influenced by the tuning parameter, just how fast it converges.
 
 ## 7)
 
-In this task we define and implement a block Metropolis–Hastings algorithm for $\pi(\vect \theta | \vect x)$ using the two block proposals defined below. Each block proposal will take turns being proposed for each iteration, i.e block proposal 1 will be used for all odd iterations and block proposal 2 will be used for all even iterations. To increase readability we will write out expressions for the full conditionals, proposal distributions and acceptance probabilites without corresponding iteration indexes. This will be done for the whole rest of the problem.
+In this task we define and implement a block Metropolis–Hastings algorithm for $\pi(\vect \theta | \vect x)$ using the two block proposals defined below. Each block proposal will take turns being proposed for each iteration, i.e block proposal 1 will be used for all odd iterations and block proposal 2 will be used for all even iterations. As mentioned earlier, to increase readability we will write out expressions for the full conditionals, proposal distributions and acceptance probabilites without corresponding iteration indexes.
 
 
 ### Block proposal 1) 
@@ -626,9 +631,9 @@ Using that the joint conditional of $(t_1, \lambda_0, \lambda_1)$ is proportiona
 Next we specify the proposal distributions. The proposal distribution of $t_1$ is a normally distributed random walk
 
 \begin{align*}
-\tilde \theta^{t_1} &\sim \mathcal{N} (\theta_{i-1}^{t_1}, \sigma^2) \\
+\tilde \theta^{t_1} &\sim \mathcal{N} (\theta_{i-1}^{t_1}, \sigma_{t_1}^2) \\
  Q(\tilde \theta_i^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{-t_1}) &=
- \frac{1}{\sqrt{2 \pi} \sigma} e^{\frac{-1}{2 \sigma^2} (\tilde t_1 - t_1)^2 }
+ \frac{1}{\sqrt{2 \pi} \sigma_{t_1}} e^{\frac{-1}{2 \sigma_{t_1}^2} (\tilde t_1 - t_1)^2 }
 \end{align*}
 
 The proposal function for $\lambda_0$ and $\lambda_1$ is the joint full conditional and due to the independence of $\lambda_0$ and $\lambda_1$ given $\beta$ and $t_1$, the proposal functions are still given by
@@ -670,7 +675,7 @@ The block acceptance probability becomes
 \tilde \lambda_0^{\tilde y_0 + 1} \tilde \lambda_1^{\tilde y_1 + 1}}
 {e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
 \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}}
-\frac{e^{\frac{-1}{2 \sigma^2} (t_1 - \tilde t_1)^2 }}{e^{\frac{-1}{2 \sigma^2} (\tilde t_1 -t_1)^2 }} \\
+\frac{e^{\frac{-1}{2 \sigma_{t_1}^2} (t_1 - \tilde t_1)^2 }}{e^{\frac{-1}{2 \sigma_{t_1}^2} (\tilde t_1 -t_1)^2 }} \\
 & \hspace{1.7cm} \cdot
 \frac
 {\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
@@ -721,9 +726,9 @@ The second block-proposal is defined as follows. A block proposal for $(\beta_0,
 The proposal distribution of $\beta$ is a normally distributed random walk
 
 \begin{align*}
-\tilde \theta^{\beta} &\sim \mathcal{N} (\theta_{i-1}^{\beta}, \sigma^2) \\
+\tilde \theta^{\beta} &\sim \mathcal{N} (\theta_{i-1}^{\beta}, \sigma_{\beta}^2) \\
  Q(\tilde \theta_i^{\beta} | \theta_{i-1}^{\beta}, \vect \theta_{i-1}^{-\beta}) &=
- \frac{1}{\sqrt{2 \pi} \sigma} e^{\frac{-1}{2 \sigma^2} (\tilde \beta - \beta)^2 }.
+ \frac{1}{\sqrt{2 \pi} \sigma_{\beta}} e^{\frac{-1}{2 \sigma_{\beta}^2} (\tilde \beta - \beta)^2 }.
 \end{align*}
 
 Using the same reasoning as in task A7, we get that since $\lambda_0$ and $\lambda_1$ are independent given $\beta$ and $t_1$ their joint full conditional is
@@ -784,7 +789,7 @@ The block acceptance probability becomes
 \tilde \lambda_0^{y_0 + 1} \tilde \lambda_1^{y_1 + 1} \tilde \beta^{-5}}
 {e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
 \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1} \beta^{-5}}
-\frac{e^{\frac{-1}{2 \sigma^2} (\beta - \tilde \beta)^2 }}{e^{\frac{-1}{2 \sigma^2} (\tilde \beta - \beta)^2 }} \\
+\frac{e^{\frac{-1}{2 \sigma_{\beta}^2} (\beta - \tilde \beta)^2 }}{e^{\frac{-1}{2 \sigma_{\beta}^2} (\tilde \beta - \beta)^2 }} \\
 &\hspace{1.7cm} \cdot
 \frac
 {\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
@@ -830,17 +835,20 @@ Again, to avoid numerical issues and increase efficience the computations of blo
 ```{r}
 #function used to sample a new t1, lambda0 and lambda1 value using a block proposal.
 # First a new t1 is proposed from a normal distribution centered at the current value of t1.
-# Thereafter lambda0 and lambda1 are generated from their joint full conditionals given beta and proposed t1.
+# Thereafter lambda0 and lambda1 are generated from their joint full conditionals given
+# beta and proposed t1.
 # Lastly the proposals are either accepted or rejected. If rejected, the current values are returned.
 # Implemented on log-form for efficiency and avoiding too large or to small values
 # sigma is a tuning parameter that determines how large steps sizes are usually taken by t1
-sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda1.prev, beta, sigma, t0, t2, y.prev, dates) {
+sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda1.prev, beta,
+                                                   sigma, t0, t2, y.prev, dates) {
   # get proposal for new t1 value from normal distribution around current value
   t1.proposal = rnorm(1, mean = t1.prev, sd = sigma)
   
   #print(paste("t1.prev=", t1.prev, "t0=", t0, "t2=", t2, "t1.proposal=", t1.proposal))
   # if proposal is outside the allowed range, return the current value of t1, lambda0 and lambda1
-  if (t1.proposal <= t0 | t1.proposal >= t2) return(list(t1 = t1.prev, lambda0 = lambda0.prev, lambda1 = lambda1.prev,
+  if (t1.proposal <= t0 | t1.proposal >= t2) return(list(t1 = t1.prev, lambda0 = lambda0.prev,
+                                                         lambda1 =lambda1.prev,
                                                          y = y.prev, accepted = 0))
 
   # find new y for given t1 propsal
@@ -874,7 +882,8 @@ sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda
   
   #calculate acceptance probability
   accept.prob = min(exp(
-    log.joint.conditional.t1.lambda0.lambda1(t1.proposal, lambda0.proposal, lambda1.proposal, y.proposal) -
+    log.joint.conditional.t1.lambda0.lambda1(t1.proposal, lambda0.proposal,
+                                             lambda1.proposal, y.proposal) -
       log.joint.conditional.t1.lambda0.lambda1(t1.prev, lambda0.prev, lambda1.prev, y.prev) +
       log.gamma.lambda0(t1.prev, lambda0.prev, beta, y.prev[1], t0) -
       log.gamma.lambda0(t1.proposal, lambda0.proposal, beta, y.proposal[1], t0) +
@@ -882,7 +891,6 @@ sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda
       log.gamma.lambda1(t1.proposal, lambda1.proposal, beta, y.proposal[2], t2)
     ), 1)
   
-  #print(accept.prob)
   # get a uniform random number between 0 and 1
   u = runif(1)
   # Return new propsals if u < acceptance probability
@@ -898,7 +906,8 @@ sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda
 ```{r}
 #function used to sample a new beta, lambda0 and lambda1 value using a block proposal.
 # First a new beta is proposed from a normal distribution centered at the current value of beta.
-# Thereafter lambda0 and lambda1 are generated from their joint full conditionals given t1 and proposed beta.
+# Thereafter lambda0 and lambda1 are generated from their joint full conditionals given
+# t1 and proposed beta.
 # Lastly the proposals are either accepted or rejected. If rejected, the current values are returned.
 # Implemented on log-form for efficiency and avoiding too large or to small values
 # sigma.beta is a tuning parameter that determines how large steps sizes are usually taken by beta
@@ -908,7 +917,8 @@ sample.block.beta.normal.walk.and.lambdas =
   # get proposal for new beta value from normal distribution around current value
   beta.proposal = rnorm(1, mean = beta.prev, sd = sigma)
   # if proposal is outside the allowed range, return the current value of beta, lambda0 and lambda1
-  if (beta.proposal <= 0) return(list(beta = beta.prev, lambda0 = lambda0.prev, lambda1 = lambda1.prev, accepted = 0))
+  if (beta.proposal <= 0) return(list(beta = beta.prev, lambda0 = lambda0.prev,
+                                      lambda1 = lambda1.prev, accepted = 0))
 
   # get proposal for lambda0 and lambda1 from joint conditional given t1.proposal and beta
   lambda0.proposal = sample.lambda0.full.conditional(t1, beta.proposal, t0, y)
@@ -941,7 +951,8 @@ sample.block.beta.normal.walk.and.lambdas =
   
   #calculate acceptance probability
   accept.prob = min(exp(
-    log.joint.conditional.beta.lambda0.lambda1(t1, beta.proposal, lambda0.proposal, lambda1.proposal, y) -
+    log.joint.conditional.beta.lambda0.lambda1(t1, beta.proposal, lambda0.proposal,
+                                               lambda1.proposal, y) -
       log.joint.conditional.beta.lambda0.lambda1(t1, beta.prev, lambda0.prev, lambda1.prev, y) +
       log.gamma.lambda0(t1, lambda0.prev, beta.prev, y[1], t0) -
       log.gamma.lambda0(t1, lambda0.proposal, beta.proposal, y[1], t0) +
@@ -952,8 +963,8 @@ sample.block.beta.normal.walk.and.lambdas =
   # get a uniform random number between 0 and 1
   u = runif(1)
   # Return new propsals if u < acceptance probability
-  if(u < accept.prob) return(list(beta = beta.proposal, lambda0 = lambda0.proposal, lambda1 = lambda1.proposal,
-                                  accepted = 1))
+  if(u < accept.prob) return(list(beta = beta.proposal, lambda0 = lambda0.proposal,
+                                  lambda1 = lambda1.proposal, accepted = 1))
   #else return current values
   else return(list(beta = beta.prev, lambda0 = lambda0.prev, lambda1 = lambda1.prev, accepted = 0))
 }
@@ -961,12 +972,15 @@ sample.block.beta.normal.walk.and.lambdas =
 
 
 ```{r}
-# Implements a block mcmc formula for approximating the posterior distribution of the parameters of interest.
+# Implements a block mcmc formula for approximating the posterior distribution of the
+# parameters of interest.
 # Using two different block updates
 block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
                       t1.initial = runif(1, dates[1], dates[length(dates)]),
                       beta.initial = 1 / rgamma(1, shape = 2, rate = 1),
+                      
                       lambda0.initial = 1 / rgamma(1, shape = 3, scale = beta.initial),
+                      
                       lambda1.initial = 1 / rgamma(1, shape = 3, scale = beta.initial)
                       ) {
   "
@@ -976,7 +990,7 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
     -dates: the dates of the explosions (+ start and end date)
     -sigma.t1: the standard error of the normally distributed random walk of t1 centered around
     the current value
-        -sigma.beta: the standard error of the normally distributed random walk of beta centered around
+    -sigma.beta: the standard error of the normally distributed random walk of beta centered around
     the current value
     -t1.initial: the initial value of t1. If not provided it is sampled from the prior
     -beta.initial: the initial value of beta. If not provided it is sampled from the prior
@@ -991,15 +1005,19 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
       -- beta: a vector of sampled beta values
       -- lambda0: a vector of sampled lambda0 values
       -- lambda1: a vector of sampled lambda1 values
-      -- iter = iter
+      -- iter: a sequence going from 0 to n + K
       -- df.parameters: a data frame containing all of the vectors above as columns in
       addition to a column with boolean value of TRUE if the observation is a part of the
       burn-in period
       -- df.parameters.long: a data frame with the same info as df.parameters, but in long-format
       -- n: number of useful samples after the burn-in period wanted
       -- K: length of the burn-in period
-      -- d: the maximum step length for the uniform random walk of t1
-      -- percent.t1.accepted: the percent of proposed t1 values accepted
+      --sigma.t1: the standard error of the normally distributed random walk of t1 centered around
+      the current value
+      --sigma.beta: the standard error of the normally distributed random walk of beta centered around
+      the current value
+      -- percent.block1.accepted: the percent of proposed block 1 values accepted
+      -- percent.block2.accepted: the percent of proposed block 2 values accepted
   "
   K = K + 1 # to make space for initial values
   t0 = dates[1] # extract start date
@@ -1024,10 +1042,12 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
   n.accepted.block2 = 0 # keep track of number of accepted t1 proposals (if applicable)
   for (i in 2:(n+K)) {
     if (i %% 2 == 0) {
-      # simulate new t1, lambda0 and lambda1 value from first block sample. Get corresponding new y value
+      # simulate new t1, lambda0 and lambda1 value from first block sample.
+      # Get corresponding new y value
       new.block.variables = 
-        sample.block.t1.normal.walk.and.lambdas(t1.values[i-1], lambda0.values[i-1], lambda1.values[i-1],
-                                                beta.values[i-1], sigma.t1, t0, t2, y, dates)
+        sample.block.t1.normal.walk.and.lambdas(t1.values[i-1], lambda0.values[i-1],
+                                                lambda1.values[i-1], beta.values[i-1],
+                                                sigma.t1, t0, t2, y, dates)
   
       t1.values[i] = new.block.variables$t1
       lambda0.values[i] = new.block.variables$lambda0
@@ -1042,8 +1062,10 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
     
     if (i %% 2 == 1) {
       # simulate new beta, lambda0 and lambda1 value. Get corresponding new y value
-      new.block.variables = sample.block.beta.normal.walk.and.lambdas(beta.values[i-1], lambda0.values[i-1],
-                                                                      lambda1.values[i-1], t1.values[i-1], 
+      new.block.variables = sample.block.beta.normal.walk.and.lambdas(beta.values[i-1],
+                                                                      lambda0.values[i-1],
+                                                                      lambda1.values[i-1],
+                                                                      t1.values[i-1], 
                                                                       sigma.beta,
                                                                       t0, t2, y, dates)
         
@@ -1064,11 +1086,13 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
   iter = c(seq(0, n+K-1))
   
   # Add parameter values and other interesting information to a data frame
-  df.parameters = data.frame(iter = iter, t1 = t1.values, beta = beta.values, lambda0 = lambda0.values,
-                             lambda1 = lambda1.values, burn.in = c(rep(TRUE, K), rep(FALSE, n)))
+  df.parameters = data.frame(iter = iter, t1 = t1.values, beta = beta.values,
+                             lambda0 = lambda0.values, lambda1 = lambda1.values,
+                             burn.in = c(rep(TRUE, K), rep(FALSE, n)))
   
   # make the same dataframe on long format
-  df.parameters.long = pivot_longer(df.parameters, c(-iter, -burn.in), names_to = "parameters", values_to = "value")
+  df.parameters.long = pivot_longer(df.parameters, c(-iter, -burn.in),
+                                    names_to = "parameters", values_to = "value")
   
   # return everything of interest in a list for easy access
   return(list(t1 = t1.values, beta = beta.values, lambda0 = lambda0.values, lambda1 = lambda1.values,
@@ -1087,15 +1111,17 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
 sigma.values.t1.low = c(1,3,5)
 sigma.values.beta.low = c(0.1,0.5,1)
 sigma.values.t1.high = c(10,20,50)
-sigma.values.beta.high = c(1,2,3)
+sigma.values.beta.high = c(2,2,3)
 # set number of iterations performed
 n = 20000
 K = 0
-# set the different seeds for the initial values. Chosen such that t_1 begins with a low, medium and high value
+# set the different seeds for the initial values.
+# Chosen such that t_1 begins with a low, medium and high value
 seeds = c(12,4,7)
 
 
-# A function that runs the MCMC block site algorithm and plots. Returns a string to be used as figure caption
+# A function that runs the MCMC block site algorithm and plots.
+# Returns a string to be used as figure caption
 plot.for.mutiple.tuning.parameters = function(n, K, sigma.values.t1, sigma.values.beta, fig.label) {
   for (i in 1:length(sigma.values.t1)) {
     # set seeds and run for three different initial conditions
@@ -1111,72 +1137,83 @@ plot.for.mutiple.tuning.parameters = function(n, K, sigma.values.t1, sigma.value
                                     block.mc.test.tuning.3$df.parameters.long)
     
     # add a column that keeps track of which realizaiton the observations belong to
-    df.parameters.test.tuning$realization = rep(c("1","2","3"), each = nrow(block.mc.test.tuning.1$df.parameters.long))
+    df.parameters.test.tuning$realization = rep(c("1","2","3"),
+                                                each = nrow(block.mc.test.tuning.1$df.parameters.long))
     # create the plot
-    p = ggplot(df.parameters.test.tuning, aes(x = iter, y = value, col = realization)) + geom_line(alpha = 0.75) +
-      facet_wrap(~parameters, scale = "free_y", ncol = 4) +
+    p = ggplot(df.parameters.test.tuning, aes(x = iter, y = value, col = realization)) +
+      
+      geom_line(alpha = 0.75) + facet_wrap(~parameters, scale = "free_y", ncol = 4) +
+      
       theme(legend.position="bottom") + guides(col = guide_legend("Realizations")) +
+      
       xlab("Iteration") + ylab("Value") +
   
       ggtitle(TeX(paste("Trace plot of the parameters for three differently chosen",
-                    "initial conditions, $\\sigma_{t_1}$ =", sigma.values.t1[i], "and $\\sigma_{\\beta}$ =", sigma.values.beta[i])),
-              subtitle = TeX(paste("Average acceptance probability for block 1 and block 2 is respectively", 
-                               round((block.mc.test.tuning.1$percent.block1.accepted +
-                                        block.mc.test.tuning.2$percent.block1.accepted +
-                                        block.mc.test.tuning.3$percent.block1.accepted) / 3,
-                                      3),
-                               "and",
-                             round((block.mc.test.tuning.1$percent.block2.accepted +
-                                        block.mc.test.tuning.2$percent.block2.accepted +
-                                        block.mc.test.tuning.3$percent.block2.accepted) / 3,
-                                      3)))) +
+                        
+        "initial conditions, $\\sigma_{t_1}$ =", sigma.values.t1[i],
+        
+        "and $\\sigma_{\\beta}$ =", sigma.values.beta[i])),
+              
+        subtitle = TeX(paste("Average acceptance probability for block 1 and block 2 is respectively",
+                                   
+       round((block.mc.test.tuning.1$percent.block1.accepted +
+                block.mc.test.tuning.2$percent.block1.accepted +
+                block.mc.test.tuning.3$percent.block1.accepted) / 3,
+              3),
+       "and",
+     round((block.mc.test.tuning.1$percent.block2.accepted +
+                block.mc.test.tuning.2$percent.block2.accepted +
+                block.mc.test.tuning.3$percent.block2.accepted) / 3,
+              3)))) +
       scale_color_manual(values = c("black", "lightblue", "lightgrey"), labels = c("1", "2", "3"))
-    # print the plot
+    # print the plots
     print(p)
   }
   
+  # Create a string with the combinations of tuning parameters as a list
   str.lists = ""
   for (i in 1:length(sigma.values.t1)) {
-    str.lists = paste(str.lists, "\\{", sigma.values.t1[i], ", ", sigma.values.beta[i], "\\}", sep = "")
+    str.lists = paste(str.lists, "\\{", sigma.values.t1[i], ", ",
+                      sigma.values.beta[i], "\\}", sep = "")
     if ( i < length(sigma.values.t1)) str.lists = paste(str.lists, ", ", sep = "")
   }
   
   # create figure caption. Written in a specific format to be able to show everythin in rmarkdown
 fig.caption.tuning = paste("\\label{", fig.label, "}Trace plot of the parameters for tuning ",
 
-      "parameter $\\{ \\sigma_{t_1}, \\sigma_{\\beta} \\} \\in$ [", str.lists, "] and three different ",
-      
-      "initial conditions. The block site MCMC algorithm was run for ", n, " iterations. ",
-      
-      "The initial values for realization 1 were; $t_1^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.1$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.1$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.1$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.1$lambda1[1],2), ". ",
+    "parameter $\\{ \\sigma_{t_1}, \\sigma_{\\beta} \\} \\in$ [", str.lists, "] and three different ",
+    
+    "initial conditions. The block site MCMC algorithm was run for ", n, " iterations. ",
+    
+    "The initial values for realization 1 were; $t_1^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.1$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.1$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.1$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.1$lambda1[1],2), ". ",
 
-      "The initial values for realization 2 were; $t_1^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.2$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.2$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.2$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.2$lambda1[1],2), ". ",
+    "The initial values for realization 2 were; $t_1^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.2$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.2$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.2$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.2$lambda1[1],2), ". ",
 
-      "The initial values for realization 3 were; $t_1^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.3$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.3$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.3$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
-      
-      round(block.mc.test.tuning.3$lambda1[1],2), ".", sep = "")
+    "The initial values for realization 3 were; $t_1^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.3$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.3$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.3$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+    
+    round(block.mc.test.tuning.3$lambda1[1],2), ".", sep = "")
   # return figure caption
   return(fig.caption.tuning)
 }
@@ -1191,7 +1228,8 @@ fig_cap_low = plot.for.mutiple.tuning.parameters(n, K, sigma.values.t1.low, sigm
 fig_cap_high = plot.for.mutiple.tuning.parameters(n, K , sigma.values.t1.high, sigma.values.beta.high, "fig:block_tuning_high")
 ```
 
-In Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we plot three realizations from different initial conditions for six combinations of tuning parameters. We do this to evaluate how the tuning parameters affect the burn-in period and mixing properties of the block Metropolis-Hastings algorithm implemented. Similar to the single site algorithm we have tuning parameters related to the expected step length of random walks. While for our single site algorithm the only tuning parameter, $d$, was for the uniform random walk of $t_1$, we have for the block algorithm two tuning parameters $\sigma_{t_1}$ and $\sigma_{\beta}$. These two are respectively the tuning parameter of the normally disttributed random walk of $t_1$ and the normally distributed random walk of $\beta$. Equivalent to what we observed for the single site case, we observe that increasing the tuning parameters related to the random walks monotonically decreases the expected burn-in time. For instance for $\sigma_{t_1} = 1$ and $\sigma_{beta} = 0.1$ we observe from Figure \ref{fig:block_tuning_low} that the burn-in time is around 12000 iterations for one of the realizations, while for $\sigma_{t_1} = 3$ and $\sigma_{t_1} = 0.5$ the burn-in period appear to be completed by iteration 3000 for all three realizations. Another thing we note 
+In Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we plot three realizations from different initial conditions for six combinations of tuning parameters. We do this to evaluate how the tuning parameters affect the burn-in period and mixing properties of the block Metropolis-Hastings algorithm implemented. Similar to the single site algorithm we have tuning parameters related to the expected step length of random walks. While for our single site algorithm the only tuning parameter, $d$, was for the uniform random walk of $t_1$, we have for the block algorithm two tuning parameters $\sigma_{t_1}$ and $\sigma_{\beta}$. These two are respectively the tuning parameter of the normally distributed random walk of $t_1$ and the normally distributed random walk of $\beta$. Equivalent to what we observed for the single site case, we observe that increasing the tuning parameters related to the random walks monotonically decreases the expected burn-in time. For instance for $\sigma_{t_1} = 1$ and $\sigma_{beta} = 0.1$ we observe from Figure \ref{fig:block_tuning_low} that the burn-in time is around 12000 iterations for one of the realizations, while for $\sigma_{t_1} = 3$ and $\sigma_{t_1} = 0.5$ the burn-in period appear to be completed by iteration 3000 for all three realizations. For $\sigma_{t_1} = 10$ and $\sigma_{\beta} = 2$ the convergence appear to be almost instantaneous. Although convergence is reached faster for higher $\sigma_{t_1}$ and $\sigma_{\beta}$ values we again see that there is a trade-off against acceptance probability. By inspection of Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we believe that $\sigma_{t_1} = 8$ and $\sigma_{t_1} = 2$ appear to be a good compromise between fast convergence and high acceptance probability. We will therefore proceed to perform some more diagnostics on the algorithm with this combination of tuning parameteres.
+
 
 ###########################
 # Exercise B:
