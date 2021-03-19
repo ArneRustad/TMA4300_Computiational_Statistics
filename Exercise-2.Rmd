@@ -10,8 +10,6 @@ header-includes:
    - \usepackage{subfig}
 ---
 
-git@github.com:ArneRustad/TMA4300_Computiational_Statistics.git
-
 \newcommand{\vect}[1]{\ensuremath{\boldsymbol{\mathbf{#1} }}}
 \newcommand{\matr}[1]{\ensuremath{\boldsymbol{\mathbf{#1} }}}
 \newcommand{\Var}{\textrm{Var}}
@@ -503,7 +501,7 @@ plot.for.mutiple.d = function(n, K, d.values, fig.label) {
                                     single.mc.test.d.2$df.parameters.long,
                                     single.mc.test.d.3$df.parameters.long)
     # add a column that keeps track of which realizaiton the observations belong to
-    df.parameters.test.d$realization = c(rep("1", n + K + 1), rep("2", n + K + 1), rep("3", n + K + 1))
+    df.parameters.test.d$realization = rep(c("1","2","3"), each = nrow(single.mc.test.d.1$df.parameters.long))
     # create the plot
     p = ggplot(df.parameters.test.d, aes(x = iter, y = value, col = realization)) + geom_line(alpha = 0.75) +
       facet_wrap(~parameters, scale = "free_y", ncol = 4) +
@@ -830,6 +828,7 @@ Again, to avoid numerical issues and increase efficience the computations of blo
 sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda1.prev, beta, sigma, t0, t2, y.prev, dates) {
   # get proposal for new t1 value from normal distribution around current value
   t1.proposal = rnorm(1, mean = t1.prev, sd = sigma)
+  
   #print(paste("t1.prev=", t1.prev, "t0=", t0, "t2=", t2, "t1.proposal=", t1.proposal))
   # if proposal is outside the allowed range, return the current value of t1, lambda0 and lambda1
   if (t1.proposal <= t0 | t1.proposal >= t2) return(list(t1 = t1.prev, lambda0 = lambda0.prev, lambda1 = lambda1.prev,
@@ -873,6 +872,7 @@ sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda
       log.gamma.lambda1(t1.prev, lambda1.prev, beta, y.prev[2], t2) -
       log.gamma.lambda1(t1.proposal, lambda1.proposal, beta, y.proposal[2], t2)
     ), 1)
+  
   #print(accept.prob)
   # get a uniform random number between 0 and 1
   u = runif(1)
@@ -882,6 +882,7 @@ sample.block.t1.normal.walk.and.lambdas = function(t1.prev, lambda0.prev, lambda
   #else return current values
   else return(list(t1 = t1.prev, lambda0 = lambda0.prev, lambda1 = lambda1.prev, y = y.prev, accepted = 0))
 }
+
 ```
 
 
@@ -952,8 +953,8 @@ sample.block.beta.normal.walk.and.lambdas =
 
 ```{r}
 # Implements a block mcmc formula for approximating the posterior distribution of the parameters of interest.
-# Using two different 
-block.mcmc = function(n, K, dates, sigma.t1, sigma.beta1,
+# Using two different block updates
+block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
                       t1.initial = runif(1, dates[1], dates[length(dates)]),
                       beta.initial = 1 / rgamma(1, shape = 2, rate = 1),
                       lambda0.initial = 1 / rgamma(1, shape = 3, scale = beta.initial),
@@ -964,7 +965,9 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta1,
     -n: number of useful samples after the burn-in period wanted
     -K: length of the burn-in period
     -dates: the dates of the explosions (+ start and end date)
-    -sigma: the standard error of the normally distributed random walk of t1 centered around
+    -sigma.t1: the standard error of the normally distributed random walk of t1 centered around
+    the current value
+        -sigma.beta: the standard error of the normally distributed random walk of beta centered around
     the current value
     -t1.initial: the initial value of t1. If not provided it is sampled from the prior
     -beta.initial: the initial value of beta. If not provided it is sampled from the prior
@@ -972,8 +975,6 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta1,
     prior given beta.initial
     -lambda1.initial: the initial value of lambda1. If not provided it is sampled from the
     prior given beta.initial
-    -block.proposal: which block proposal is to be used in the algorithm. Currently implemented
-    options are c('t1.lambda0.lambda1', 'beta.lambda0.lambda1')
     
   Output:
     -A list containing
@@ -1010,53 +1011,34 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta1,
   # create y containing y0 and y1
   y = c(sum(date.explosions <= t1.initial), sum(date.explosions > t1.initial)) 
   
-  n.accepted.block = 0 # keep track of number of accepted block proposals
-  n.accepted.t1 = 0 # keep track of number of accepted t1 proposals (if applicable)
+  n.accepted.block1 = 0 # keep track of number of accepted block proposals
+  n.accepted.block2 = 0 # keep track of number of accepted t1 proposals (if applicable)
   for (i in 2:(n+K)) {
-    if (block.proposal == "t1.lambda0.lambda1") {
-      # simulate new t1, lambda0 and lambda1 value from first block sample. Get corresponding new y value
-      new.block.variables = 
-        sample.block.t1.normal.walk.and.lambdas(t1.values[i-1], lambda0.values[i-1], lambda1.values[i-1],
-                                                beta.values[i], sigma, t0, t2, y, dates)
-      t1.values[i] = new.block.variables$t1
-      lambda0.values[i] = new.block.variables$lambda0
-      lambda1.values[i] = new.block.variables$lambda1
-      
-      # simulate new beta, lambda0 and lambda1 value. Get corresponding new y value
-      new.block.variables = sample.block.beta.normal.walk.and.lambdas(beta.values[i-1], lambda0.values[i-1],
-                                                                      lambda1.values[i-1], t1.values[i], sigma, t0,
-                                                                      t2, y, dates)
-        
-      beta.values[i] = new.block.variables$beta
-      lambda0.values[i] = new.block.variables$lambda0
-      lambda1.values[i] = new.block.variables$lambda1
-      
-      
-      y = new.block.variables$y
-      # keep track of number of accepted block proposals
-      n.accepted.block = n.accepted.block + new.block.variables$accepted
-      n.accepted.t1 = NA # not applicable as t1 is included in block sampling
-    }
+    # simulate new t1, lambda0 and lambda1 value from first block sample. Get corresponding new y value
+    new.block.variables = 
+      sample.block.t1.normal.walk.and.lambdas(t1.values[i-1], lambda0.values[i-1], lambda1.values[i-1],
+                                              beta.values[i-1], sigma.t1, t0, t2, y, dates)
+
+    t1.values[i] = new.block.variables$t1
+    lambda0.values[i] = new.block.variables$lambda0
+    lambda1.values[i] = new.block.variables$lambda1
     
-    if (block.proposal == "beta.lambda0.lambda1") {
-      # sample new beta value from full conditional distribution
-      new.t1.and.y.value = sample.t1.random.walk.uniform(t1.values[i-1], lambda0.values[i-1],
-                                                  lambda1.values[i-1], d, t0, t2, y, dates)
-      t.values[i] = new.t1.and.y.value$t1
-      y = new.t1.and.y.value$y
-      n.accepted.t1 = new.t1.and.y.value$accepted
+    y = new.block.variables$y
+    n.accepted.block1 = n.accepted.block1 + new.block.variables$accepted
+
+    
+    # simulate new beta, lambda0 and lambda1 value. Get corresponding new y value
+    new.block.variables = sample.block.beta.normal.walk.and.lambdas(beta.values[i-1], lambda0.values[i],
+                                                                    lambda1.values[i], t1.values[i], sigma.beta, t0,
+                                                                    t2, y, dates)
       
-      # simulate new beta, lambda0 and lambda1 value. Get corresponding new y value
-      new.block.variables = sample.block.beta.normal.walk.and.lambdas(beta.values[i-1], lambda0.values[i-1],
-                                                                      lambda1.values[i-1], t1.values[i], sigma, t0,
-                                                                      t2, y, dates)
-        
-      beta.values[i] = new.block.variables$beta
-      lambda0.values[i] = new.block.variables$lambda0
-      lambda1.values[i] = new.block.variables$lambda1
-      # keep track of number of accepted block proposals
-      n.accepted.block = n.accepted.block + new.block.variables$accepted
-    }
+    beta.values[i] = new.block.variables$beta
+    lambda0.values[i] = new.block.variables$lambda0
+    lambda1.values[i] = new.block.variables$lambda1
+    
+    
+    # keep track of number of accepted block proposals
+    n.accepted.block2 = n.accepted.block2 + new.block.variables$accepted
   }
   
   # Create a vector with the iteration numbers. The initial values correspond to iteration 0.
@@ -1072,24 +1054,127 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta1,
   # return everything of interest in a list for easy access
   return(list(t1 = t1.values, beta = beta.values, lambda0 = lambda0.values, lambda1 = lambda1.values,
               df.parameters = df.parameters, df.parameters.long = df.parameters.long,
-              n = n, K = K-1, sigma = sigma, d = d, iter = iter, 
-              percent.t1.accepted = n.accepted.t1 / (n + K - 1),
-              percent.block.accepted = n.accepted.block / (n + K -1)))
+              n = n, K = K-1, sigma = sigma.beta, sigma.t1, iter = iter, 
+              percent.block1.accepted = n.accepted.block1 / (n + K - 1),
+              percent.block2.accepted = n.accepted.block2 / (n + K -1)))
+}
+
+result = block.mcmc(100, K, df.coal$date, 1,1)
+```
+
+
+## 8)
+
+```{r tuning_alg}
+# Decide for which tuning parameter combinations the algorithm will be tested
+sigma.values.t1.low = c(1,3,5)
+sigma.values.beta.low = c(0.1,0.5,1)
+sigma.values.t1.high = c(10,20,50)
+sigma.values.beta.high = c(3,3,3)
+# set number of iterations performed
+n = 20000
+K = 0
+# set the different seeds for the initial values. Chosen such that t_1 begins with a low, medium and high value
+seeds = c(12,4,7)
+
+
+# A function that runs the MCMC block site algorithm and plots. Returns a string to be used as figure caption
+plot.for.mutiple.tuning.parameters = function(n, K, sigma.values.t1, sigma.values.beta, fig.label) {
+  for (i in 1:length(sigma.values.t1)) {
+    # set seeds and run for three different initial conditions
+    set.seed(seeds[1])
+    block.mc.test.tuning.1 = block.mcmc(n,K, df.coal$date, sigma.values.t1[i], sigma.values.beta[i])
+    set.seed(seeds[2])
+    block.mc.test.tuning.2 = block.mcmc(n,K, df.coal$date, sigma.values.t1[i], sigma.values.beta[i])
+    set.seed(seeds[3])
+    block.mc.test.tuning.3 = block.mcmc(n,K, df.coal$date, sigma.values.t1[i], sigma.values.beta[i])
+    # Combine the realizations to a block data frame for plotting
+    df.parameters.test.tuning = rbind(block.mc.test.tuning.1$df.parameters.long,
+                                    block.mc.test.tuning.2$df.parameters.long,
+                                    block.mc.test.tuning.3$df.parameters.long)
+    
+    # add a column that keeps track of which realizaiton the observations belong to
+    df.parameters.test.tuning$realization = rep(c("1","2","3"), each = nrow(block.mc.test.tuning.1$df.parameters.long))
+    # create the plot
+    p = ggplot(df.parameters.test.tuning, aes(x = iter, y = value, col = realization)) + geom_line(alpha = 0.75) +
+      facet_wrap(~parameters, scale = "free_y", ncol = 4) +
+      theme(legend.position="bottom") + guides(col = guide_legend("Realizations")) +
+      xlab("Iteration") + ylab("Value") +
+  
+      ggtitle(TeX(paste("Trace plot of the parameters for three differently chosen",
+                    "initial conditions, $\\sigma_{t_1}$ =", sigma.values.t1[i], "and $\\sigma_{\\beta}$ =", sigma.values.beta[i])),
+              subtitle = TeX(paste("Average acceptance probability for block 1 and block 2 is respectively", 
+                               round((block.mc.test.tuning.1$percent.block1.accepted +
+                                        block.mc.test.tuning.2$percent.block1.accepted +
+                                        block.mc.test.tuning.3$percent.block1.accepted) / 3,
+                                      3),
+                               "and",
+                             round((block.mc.test.tuning.1$percent.block2.accepted +
+                                        block.mc.test.tuning.2$percent.block2.accepted +
+                                        block.mc.test.tuning.3$percent.block2.accepted) / 3,
+                                      3)))) +
+      scale_color_manual(values = c("black", "lightblue", "lightgrey"), labels = c("1", "2", "3"))
+    # print the plot
+    print(p)
+  }
+  
+  str.lists = ""
+  for (i in 1:length(sigma.values.t1)) {
+    str.lists = paste(str.lists, "\\{", sigma.values.t1[i], ", ", sigma.values.beta[i], "\\}", sep = "")
+    if ( i < length(sigma.values.t1)) str.lists = paste(str.lists, ", ", sep = "")
+  }
+  
+  print(str.lists)
+  # create figure caption. Written in a specific format to be able to show everythin in rmarkdown
+fig.caption.d = paste("\\label{", fig.label, "}Trace plot of the parameters for tuning ",
+
+                      "parameter $\\{ \\sigma_{t_1}, \\sigma_{\\beta} \\} \\in$ [", str.lists, "] and three different ",
+                      
+                      "initial conditions. The block site MCMC algorithm was run for ", n, " iterations. ",
+                      
+                      "The initial values for realization 1 were; $t_1^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.1$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.1$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.1$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.1$lambda1[1],2), ". ",
+
+                      "The initial values for realization 2 were; $t_1^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.2$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.2$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.2$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.2$lambda1[1],2), ". ",
+
+                      "The initial values for realization 3 were; $t_1^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.3$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.3$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.3$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+                      
+                      round(block.mc.test.tuning.3$lambda1[1],2), ".", sep = "")
+  # return figure caption
+print(fig.caption.d)
+  return(fig.caption.d)
 }
 ```
 
 
-```{r}
-n = 1000
-K = 0
-sigma = 5
+```{r, fig.width = 10, fig.height=3, fig.cap = fig_cap_low, eval.after = "fig.cap", fig.show = "hold", out.width = "100%", dependson= "tuning_alg"}
+fig_cap_low = plot.for.mutiple.tuning.parameters(n, K , sigma.values.t1.low, sigma.values.beta.low, "fig:block_tuning_low")
 ```
 
-
-
-
-
-
+```{r, fig.width = 10, fig.height=3, fig.cap = fig_cap_high, eval.after = "fig.cap", fig.show = "hold", out.width = "100%", dependson="tuning_alg"}
+fig_cap_high = plot.for.mutiple.tuning.parameters(n, K , sigma.values.t1.high, sigma.values.beta.high, "fig:block_tuning_high")
+```
 
 
 
@@ -1101,7 +1186,8 @@ Loading the dataset from github
 ```{r}
 library(ggplot2)
 
-y <- read.csv("https://raw.githubusercontent.com/johanage/TMA4300/master/Gaussian%20Data.csv", header=FALSE)
+g.data <- read.csv("https://raw.githubusercontent.com/johanage/TMA4300/master/Gaussian%20Data.csv", header=FALSE, col.names = "y")
+g.data$t = seq(1, length(g.data$y))
 head(y, n=length(y[,1]))
 ggplot(y, aes(x=seq(length(y[,1])), y=y[,1]) ) +
   geom_point()
@@ -1160,4 +1246,108 @@ We have that:
 
 Use the grid of $\Theta$ value from point 2) to approximate the integral above for $i = 10$. Compare your approximation
 for $\Pi(\eta_i|y)$ with the estimation obtained in point 1) via Gibbs sampling.
+
+
+
+## 5)
+
+```{r, fig.width = 6}
+library(INLA)
+# prec is short for "log precicion"
+# one of many choices for hyperparameters
+# For example, precisions are represented in the internal scale in the log-scale. This is computationally convenient because in the internal scale the parameter is not bounded. Therefore we use "loggamma" as prior
+hyper = list(`log precision` = list(prior = "loggamma", param=c(1,1)))
+hyper = list(prec = list(prior = "loggamma", param=c(1,1))) # equivalent definition
+
+# constr = sum to zero constraint
+# cyclic: boolean value specifying whether the model is cyclical
+# hyper: Specification of the hyperparameter, fixed or random, initial values, priors and its parameters
+#formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = FALSE) - 1
+
+# a second version to specify formula (same result, but eta not exactly equal)
+formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = TRUE)
+
+data = data.frame(y = g.data$y, t = seq(1, length(g.data$y))) # can be either data frame or list
+result = inla(
+  # Description for linear predictor
+  formula = formula, 
+  # Likelihood for y given eta. Default is gaussian with identity link
+  family = "gaussian", 
+  # The dataset to be used (y and t)
+  data = data,
+  # Specify which quantiles are to be calculated
+  quantiles=c(0.025, 0.5, 0.975), # this is standard
+  control.predictor = list(link = 1) # calulate linear predictor
+)
+
+# get important output for plotting
+df.inla = data.frame(t = data$t, eta.mean = result$summary.random$t$mean,
+                     linear.pred.mean = result$summary.linear.predictor$mean,
+                     "lower.0.025.quantile" = result$summary.random$t$`0.025quant`,
+                     "upper.0.975.quantile" = result$summary.random$t$`0.975quant`)
+df.inla.long = pivot_longer(df.inla, -t, names_to = "lines")
+ggplot(df.inla.long, aes(x = t, y = value)) + geom_line(aes(col = lines)) + geom_point(aes(x = t, y = y, col = "y"), data = g.data) +
+  guides(col = guide_legend("Line/Points")) + scale_color_discrete(label=c("Mean of eta", "Mean of linear predictor", "0.025 quantile of eta", "0.975 quantile of eta", "y"))
+ggsave("2.jpg", width = 6, height = 3, path = "C:/trash/")
+
+```
+
+```{r, fig.width = 6}
+library(INLA)
+# prec is short for "log precicion"
+# one of many choices for hyperparameters
+# For example, precisions are represented in the internal scale in the log-scale. This is computationally convenient because in the internal scale the parameter is not bounded. Therefore we use "loggamma" as prior
+hyper = list(`log precision` = list(prior = "loggamma", param=c(1,1)))
+#hyper = list(prec = list(prior = "loggamma", param=c(1,1))) # equivalent definition
+
+# constr = sum to zero constraint
+# cyclic: boolean value specifying whether the model is cyclical
+# hyper: Specification of the hyperparameter, fixed or random, initial values, priors and its parameters
+formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = FALSE) - 1
+
+# a second version to specify formula (same result, but eta not exactly equal)
+#formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = TRUE)
+
+data = data.frame(y = g.data$y, t = seq(1, length(g.data$y))) # can be either data frame or list
+result = inla(
+  # Description for linear predictor
+  formula = formula, 
+  # Likelihood for y given eta. Default is gaussian with identity link
+  family = "gaussian", 
+  # The dataset to be used (y and t)
+  data = data,
+  # Specify which quantiles are to be calculated
+  quantiles=c(0.025, 0.5, 0.975), # this is standard
+  control.predictor = list(link = 1) # calulate linear predictor
+)
+
+# get important output for plotting
+df.inla = data.frame(t = data$t, eta.mean = result$summary.random$t$mean,
+                     linear.pred.mean = result$summary.linear.predictor$mean,
+                     "lower.0.025.quantile" = result$summary.random$t$`0.025quant`,
+                     "upper.0.975.quantile" = result$summary.random$t$`0.975quant`)
+df.inla.long = pivot_longer(df.inla, -t, names_to = "lines")
+ggplot(df.inla.long, aes(x = t, y = value)) + geom_line(aes(col = lines)) + geom_point(aes(x = t, y = y, col = "y"), data = g.data) +
+  guides(col = guide_legend("Line/Points")) + scale_color_discrete(label=c("Mean of eta", "Mean of linear predictor", "0.025 quantile of eta", "0.975 quantile of eta", "y"))
+ggsave("1.jpg", width = 6, height = 3, path = "C:/trash/")
+
+```
+
+
+```{r}
+n=100
+z=seq(0,6,length.out=n)
+y=sin(z)+rnorm(n,mean=0,sd=0.5)
+
+data=data.frame(y=y,z=z)
+
+formula=y~f(z,model="rw2")
+result=inla(formula,data=data,family="gaussian")
+
+plot(z, y)
+lines(z, result$summary.random$z$mean, col = "red")
+```
+
+
+
 
