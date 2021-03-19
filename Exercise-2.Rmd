@@ -53,7 +53,17 @@ df.coal = coal # Get the data into a new data frame variable
 df.coal$cum.n.explosions = c(1, cumsum(rep(1, nrow(coal)-2)), nrow(coal)-2)
 
 # plot the cumulative number of explosions as a function of time
-ggplot(df.coal, aes(x = date, y = cum.n.explosions)) + geom_line() + ggtitle("Cumulative number of explosions (15.03.1851-22.3.1962)") + xlab("Year") + ylab("Cumlative number of explosions") + geom_vline(aes(xintercept = 1890, linetype = "Year 1890")) + geom_vline((aes(xintercept = 1945, linetype = "Year 1945"))) + guides(linetype = guide_legend("Vertical Lines"))
+ggplot(df.coal, aes(x = date, y = cum.n.explosions)) + geom_line() +
+  
+  ggtitle("Cumulative number of explosions (15.03.1851-22.3.1962)") +
+  
+  xlab("Year") + ylab("Cumlative number of explosions") +
+  
+  geom_vline(aes(xintercept = 1890, linetype = "Year 1890")) +
+  
+  geom_vline((aes(xintercept = 1945, linetype = "Year 1945"))) +
+  
+  guides(linetype = guide_legend("Vertical Lines"))
 ```
 
 From Figure \ref{fig:1a_cumplot} the rate of accidents appear approximately constant from year 1850 until around 1890. Then the rate of large explosions appear to dampen a bit, perhaps due to better safety rutines, better equipment, change in societal norms and laws, less demand for coal or another reason. There also appears to be a significant change in rate of accidents around the end of world war 2, i.e year 1945. If we were trying to estimate two break points for change in rate of accidents, then these two might be quite good options. However, if we only wanted to estimate one it would probably be around 1890.
@@ -78,7 +88,7 @@ f (x | t_1, \dots, t_n, \lambda_0, \dots, \lambda_n)
 &= e^{-\sum_{k = 0}^{n} \lambda_k (t_{k+1} - t_k)} \prod_{k=0}^{n} \lambda_k^{y_k}.
 \end{align*}
 a
-Here $x$ is the observed data and $y_k$ is the number of observed disasters in the period $t_k$ to $t_{k+1}$. Assume $t_1, \dots, t_n$ to be apriori uniformly distributed on the allowed values and $\lambda_0, \dots, \lambda_n$ to be apriori independent of $t_1, \dots, t_n$ and apriori independent of each other. Apriori we assume all $\lambda_0, \dots, \lambda_n$ to be distributed from the same gamma distribution with shape parameter $\alpha = 2$ and scale parameter $\beta$, i.e
+Here $\vect x$ is the observed data and $y_k$ is the number of observed disasters in the period $t_k$ to $t_{k+1}$. Assume $t_1, \dots, t_n$ to be apriori uniformly distributed on the allowed values and $\lambda_0, \dots, \lambda_n$ to be apriori independent of $t_1, \dots, t_n$ and apriori independent of each other. Apriori we assume all $\lambda_0, \dots, \lambda_n$ to be distributed from the same gamma distribution with shape parameter $\alpha = 2$ and scale parameter $\beta$, i.e
 
 \begin{align*}
 \pi (\lambda_i | \beta) = \frac{1}{\beta^2} \lambda_i e^{\frac{-\lambda_i}{\beta}} \; \textrm{for } \lambda_i \geq 0
@@ -93,14 +103,14 @@ In the following it is assumed $n = 1$, resulting in $\vect{\theta} = (t_1, \lam
 The posterior distribution is then
 
 \begin{align*}
-\pi(\vect{\theta} | x) &= f(x | \vect{\theta}) \pi(\vect{\theta}) \\
-&= f(x | t_1,  \lambda_0, \lambda_1) \pi(t_1) \pi(\lambda_0 | \beta) \pi(\lambda_1 | \vect{\theta}) \pi(\beta)
+\pi(\vect{\theta} | \vect x) &= f(\vect x | \vect{\theta}) \pi(\vect{\theta}) \\
+&= f(\vect x | t_1,  \lambda_0, \lambda_1) \pi(t_1) \pi(\lambda_0 | \beta) \pi(\lambda_1 | \vect{\theta}) \pi(\beta)
 \end{align*}
 
 Here it is used that $t_1, \lambda_0$ and $\lambda_1$ all are independent of each other. Inserting the expressions for the likelihood and the priors we get an expression for the posterior distribution up to a proportionality constant
 
 \begin{align*}
-\pi(\vect{\theta} = (t_1, \lambda_0, \lambda_1, \beta) | x)
+\pi(\vect{\theta} = (t_1, \lambda_0, \lambda_1, \beta) | \vect x)
 &\propto e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1)} \lambda_0^{y_0} \lambda_1^{y_1}
 \frac{1}{t_{2} - t_0}
 \frac{1}{\beta^2} \lambda_0 e^{\frac{-\lambda_0}{\beta}}
@@ -114,9 +124,9 @@ Here it is used that $t_1, \lambda_0$ and $\lambda_1$ all are independent of eac
 
 Next we want to find the full conditionals of $\vect{\theta}$ for later use in the implementation of MCMC algorithms to find the posterior. Let $\vect{\theta}^{-j}$ denote all of vector $\vect{\theta}$ except for the jth element, i.e $\vect{\theta}^{-j} = [\theta^1, \dots, \theta^{j-1}, \theta^{j+1}, \dots, \theta^4]$. The full conditional of element $j$ in component vector $\vect{\theta}$ is defined as
 
-$$ \pi (\theta^j | \vect{\theta}^{-j}) = \frac{\pi(\vect{\theta )}}{\pi (\vect{\theta}^{-j})} \propto  \pi(\vect{\theta )}.$$
+$$ \pi (\theta^j | \vect{\theta}^{-j}, \vect x) = \frac{\pi(\vect{\theta} | \vect x)}{\pi (\vect{\theta}^{-j} | \vect x)} \propto  \pi(\vect{\theta} | \vect x).$$
 
-Thus, the non-normalised conditional densities of $\theta^j | \vect{\theta}^{-j}$ can be directly derived from $\pi(\vect{\theta})$ by omitting all multiplicative factors that do not depend on $\theta_j$.
+Thus, the non-normalised conditional densities of $\theta^j | \vect{\theta}^{-j}$ can be directly derived from $\pi(\vect{\theta} | \vect x)$ by omitting all multiplicative factors that do not depend on $\theta_j$.
 
 The full conditional of $t_1$ is
 
@@ -143,7 +153,7 @@ From this we see that the full conditional of $\lambda_1$ is Gamma$(y_1 + 2, \fr
 \pi(\beta | \vect{x}, t_1, \lambda_0, \lambda_1) \propto  \frac{1}{\beta^5} e^{\frac{-(1 + \lambda_0 + \lambda_1)}{\beta}}, \qquad \beta >0.
 \end{equation}
 
-Here $\beta$ is $\textrm{Inverse Gamma}(6, 1 + \lambda_0 + \lambda_1)$ distributed where the first parameter is the shape parameter and the second is the scale parameter. 
+Here $\beta$ is $\textrm{Inverse Gamma}(4, 1 + \lambda_0 + \lambda_1)$ distributed where the first parameter is the shape parameter and the second is the scale parameter. 
 
 
 
@@ -152,7 +162,7 @@ Here $\beta$ is $\textrm{Inverse Gamma}(6, 1 + \lambda_0 + \lambda_1)$ distribut
 
 In this task we want to implement a single site MCMC algorithm for the posterior distribution $\pi(\vect{\theta} | \vect{x})$. Since three out of four full conditionals are known distributions we implement a Hybrid Gibbs sampler (Metropolis-within-Gibbs). This way three out of four components can be sampled very efficiently.
 
-Before we proceed we want to determine some notation. Denote $\vect \theta_i$ be ith component vector in the MCMC algorithm and let $Q(\tilde \theta ^j | \theta_{i-1}^j, \vect \theta_{i-1}^{-j})$ be the proposal distribution for component j at the ith iteration where $\tilde \theta^j$ is the proposal. Here $\vect \theta_{i-1}^{-j} = [\theta_{i}^1, \dots, \theta_{i}^{j-1}, \theta_{i-1}^{j+1}, \dots, \theta_{i-1}^4]$. The corresponding acceptance probability of the proposal for component $j$ at iteration $i$ is denoted $\alpha(\tilde \theta^j | \vect \theta_{i-1}^j,  \theta_{i-1}^{-j})$ and can be expressed as
+Before we proceed we want to determine some notation. Let $\vect \theta_i$ be ith component vector in the MCMC algorithm and let $Q(\tilde \theta ^j | \theta_{i-1}^j, \vect \theta_{i-1}^{-j})$ be the proposal distribution for component j at the ith iteration where $\tilde \theta^j$ is the proposal. Here $\vect \theta_{i-1}^{-j} = [\theta_{i}^1, \dots, \theta_{i}^{j-1}, \theta_{i-1}^{j+1}, \dots, \theta_{i-1}^4]$ in accordance with the definition in task A3. The corresponding acceptance probability of the proposal for component $j$ at iteration $i$ is denoted $\alpha(\tilde \theta^j | \vect \theta_{i-1}^j,  \theta_{i-1}^{-j})$ and can be expressed as
 
 
 $$\alpha(\tilde \theta^j | \theta_{i-1}^j,  \vect \theta_{i-1}^{-j})
@@ -222,11 +232,12 @@ e^{(\tilde t_1 - t_1) (\lambda_1 - \lambda_0)} \lambda_0^{\tilde y_0 - y_0} \lam
 \right \}.
 \end{align*}
 
-Note that again the iteration index is exluded from the longer expressions for readability. To avoid numerical owerflow and underlow and increase efficiency the computations of acceptance probability is computed on log-scale.
+Note that again the iteration index is exluded from the longer expressions for readability. We will consistently do this for the longer expressions for the rest of problem A. To avoid numerical owerflow and underlow and increase efficiency the computations of acceptance probability is computed on log-scale.
 
 
 ```{r}
-# function used to sample from full conditional of beta
+# function used to sample from full conditional of beta.
+# use the fact that 1 / beta is gamma distributed.
 sample.beta.full.conditional = function(lambda0, lambda1) {
   return(1 / rgamma(1, shape = 6, rate = (1 + lambda0 + lambda1)))
 }
@@ -350,24 +361,33 @@ single.mcmc = function(n, K, dates, d,
   iter = c(seq(0, n+K-1))
   
   # Add parameter values and other interesting information to a data frame
-  df.parameters = data.frame(iter = iter, t1 = t1.values, beta = beta.values, lambda0 = lambda0.values,
-                             lambda1 = lambda1.values, burn.in = c(rep(TRUE, K), rep(FALSE, n)))
+  df.parameters = data.frame(iter = iter, t1 = t1.values, beta = beta.values,
+                             
+                             lambda0 = lambda0.values,
+                             lambda1 = lambda1.values, 
+                             burn.in = c(rep(TRUE, K), rep(FALSE, n)))
   
   # make the same dataframe on long format
-  df.parameters.long = pivot_longer(df.parameters, c(-iter, -burn.in), names_to = "parameters", values_to = "value")
+  df.parameters.long = pivot_longer(df.parameters, c(-iter, -burn.in),
+                                    
+                                    names_to = "parameters", values_to = "value")
   
   # return everything of interest in a list for easy access
-  return(list(t1 = t1.values, beta = beta.values, lambda0 = lambda0.values, lambda1 = lambda1.values,
-              df.parameters = df.parameters, df.parameters.long = df.parameters.long,
-              n = n, K = K-1, d = d, iter = iter, percent.t1.accepted = n.accepted / (n + K - 1)))
+  return(list(t1 = t1.values, beta = beta.values, lambda0 = lambda0.values,
+              
+              lambda1 = lambda1.values, df.parameters = df.parameters,
+              
+              df.parameters.long = df.parameters.long,
+              
+              n = n, K = K-1, d = d, iter = iter, 
+              
+              percent.t1.accepted = n.accepted / (n + K - 1)))
 }
 ```
 
 ## 5)
 
-In this task we run our single site algorithm implemented in task 4) and evaluate the burn-in and mixing properties of our algorithm.
-
-???????????????????????????????????? How many starting values must we test for and for how many iterations?
+In this task we run our single site algorithm implemented in task A4 and evaluate the burn-in and mixing properties of our algorithm.
 
 ```{r run_mcmc_single}
 # run the algorithm for intital values sampled from prior
@@ -377,11 +397,11 @@ single.mc.result = single.mcmc(20000,1000, df.coal$date, 10)
 
 ```{r fig_captions5, echo = FALSE}
 # Creating the figure caption
-fig.caption.trace.plot = paste("\\label{fig:trace_plot} Trace plot of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for a burn-in period of 1000 iterations and then 20000 iterations of a hopefully converged single site MCMC algorithm. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(single.mc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(single.mc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(single.mc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(single.mc.result$lambda1[1],3), ". The tuning parameter $d = 10.$", sep = "")
+fig.caption.trace.plot = paste("\\label{fig:trace_plot} Trace plot of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for a burn-in period of 1000 iterations and then 20000 iterations of a hopefully converged single site MCMC algorithm. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(single.mc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(single.mc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(single.mc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(single.mc.result$lambda1[1],3), ". The tuning parameter is $d = 10.$", sep = "")
 
-fig.caption.histogram.plot = paste("\\label{fig:histogram_plot} Histogram of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for 20000 iterations after discarding the 1000 burn-in samples. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(single.mc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(single.mc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(single.mc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(single.mc.result$lambda1[1],3), ". The tuning parameter $d = 10.$", sep = "")
+fig.caption.histogram.plot = paste("\\label{fig:histogram_plot} Histogram of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for 20000 iterations after discarding the 1000 burn-in samples. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(single.mc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(single.mc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(single.mc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(single.mc.result$lambda1[1],3), ". The tuning parameter is $d = 10.$", sep = "")
 
-fig.caption.autocorrelation.plot = paste("\\label{fig:autocorrelation_plot}Autocorrelation plot of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for 20000 iterations after discarding the 1000 burn-in samples. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(single.mc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(single.mc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(single.mc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(single.mc.result$lambda1[1],3), ". The tuning parameter $d = 10.$", sep = "")
+fig.caption.autocorrelation.plot = paste("\\label{fig:autocorrelation_plot}Autocorrelation plot of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for 20000 iterations after discarding the 1000 burn-in samples. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(single.mc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(single.mc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(single.mc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(single.mc.result$lambda1[1],3), ". The tuning parameter is $d = 10.$", sep = "")
 ```
 
 
@@ -391,10 +411,12 @@ ggplot(single.mc.result$df.parameters.long, aes(x = iter, y = value)) + geom_lin
   facet_wrap(~parameters, scale = "free_y") +
   geom_vline(aes(xintercept = single.mc.result$K, col = "Cut off point burn in period"), size = 1) +
   theme(legend.position="bottom") + guides(col = guide_legend("Line")) +
-  xlab("Iteration") + ylab("Value") + ggtitle("Trace plot of the parameters")
+  xlab("Iteration") + ylab("Value") +
+  
+  ggtitle("Trace plot of the parameters")
 ```
 
-From Figure \ref{fig:trace_plot} it appears that the MCMC output has converged to the posterior distribution according to the trace plot. The samples forming a homogene band after the burn-in period (and some time before) indicates convergence. 
+From Figure \ref{fig:trace_plot} it appears that the MCMC output has converged to the posterior distribution according to the trace plot. The samples forming a homogene band after the burn-in period (and some time before) indicates convergence. Another positive observations is that the chain seem to move fast through the posterior sample space, indicating low correlation between subsequent samples.
 
 ```{r, fig.width = 10, fig.height = 4, fig.cap = fig.caption.histogram.plot, dependson="fig_caption5"}
 # Plot histograms of each parameter for a single realization of the single site MCMC
@@ -415,7 +437,7 @@ lambda1.estimated = sum(date.explosions > t1.assumed) / (t2-t1.assumed)
 
 From Figure \ref{fig:1a_cumplot} it appears that there is a large change in rate of accidents around 1890, and a smaller around 1945. Consequently, since the histogram plot of parameter $t_1$ in Figure \ref{fig:histogram_plot} is centered around 1890 and has most of it's samples a distance of plus-minus five years away, it indicates that the simulated values of $t_1$ are reasonable. If we assume that 1890 is the correct value of $t_1$ and calulcate the average rate of accidents between $t_0$ and 1890 then we get a rate of $`r round(lambda0.estimated,3)`$. Similarily, if we calculate the average rate of accidents between $t_0$ and 1890 then we get a rate of $`r round(lambda1.estimated,3)`$. Comparing these values against the corresponding histograms of simulated values in Figure \ref{fig:histogram_plot} it appears that the simulated values of $\lambda_0$ and $\lambda_1$ are reasonable.
 
-Another diagnostic tool is to examine dependencies of successive MCMC samples. From the autocorrelation plots in figure \ref{fig:autocorrelation_plot} we observed that for lag 20 and higher there is almost zero correlation between the samples for $t_1$. Additionally, the correlation is almost zero already for lag 5 for both $\lambda_0$ and $\lambda_1$ samples and lag 3 for $\beta$ samples. 
+Another diagnostic tool is to examine dependencies of successive MCMC samples. From the autocorrelation plots in Figure \ref{fig:autocorrelation_plot} we observed that for lag 20 and higher there are almost zero correlation between the samples for $t_1$. Additionally, the correlation is almost zero already for lag 5 for both $\lambda_0$ and $\lambda_1$ samples and lag 3 for $\beta$ samples. 
 
 ```{r, fig.width=8, fig.height=4, fig.ncol = 2, out.width = "50%", fig.show = "hold", fig.cap = fig.caption.autocorrelation.plot, dependsupon="fig_caption5"}
 df.parameters.after.burn.in = subset(single.mc.result$df.parameters, burn.in == FALSE)
@@ -437,7 +459,7 @@ effective.size.single.site.mcmc
 A useful measure to compare the performance of MCMC samplers is the effective sample size (ESS).
 
 $$ \mathrm{ESS} = \frac{n}{\tau}, \qquad \tau = 1 + 2 \sum_{k=1}^\infty \rho(k),$$
-where $\tau$ is the autocorrelation time and $\rho(k)$ the autocorrelation at lag $k$. The effective samples size of $t_1, \beta, \lambda_0$ and $\lambda_1$ is respectively $`r round(effective.size.single.site.mcmc[1], 2)`$, $`r round(effective.size.single.site.mcmc[2], 2)`$, $`r round(effective.size.single.site.mcmc[3], 2)`$ and $`r round(effective.size.single.site.mcmc[4], 2)`$. In compliance with the autocorrelation plots, the effective sample size of $t_1$ is much smaller than the other parameters. This is due to the samples of $t_1$ being much more correlated.
+where $\tau$ is the autocorrelation time and $\rho(k)$ the autocorrelation at lag $k$. The estimated effective samples size of $t_1, \beta, \lambda_0$ and $\lambda_1$ is respectively $`r round(effective.size.single.site.mcmc[1], 2)`$, $`r round(effective.size.single.site.mcmc[2], 2)`$, $`r round(effective.size.single.site.mcmc[3], 2)`$ and $`r round(effective.size.single.site.mcmc[4], 2)`$. In compliance with the autocorrelation plots, the effective sample size of $t_1$ is much smaller than the other parameters. This is due to the samples of $t_1$ being much more correlated.
 
 The diagnostics above was done only for a single MCMC realization. To increase our certainty that the chain actually has converged to the posterior distrbution we will try to run it again from multiple initial values far away from the values it converged to above.
 
@@ -462,13 +484,11 @@ ggplot(df.parameters.single.mc.multiple, aes(x = iter, y = value, col = realizat
   xlab("Iteration") + ylab("Value") + 
   
   ggtitle("Trace plot of the parameters for two differently chosen initial conditions") +
-  scale_color_manual(values = c("black", "lightblue", "red"), labels = c("Realization 2", "Realization 3", "Cut off point burn in period"))
+  scale_color_manual(values = c("black", "lightblue", "red"), labels = c("Realization 2", "Realization 3", "Vertical line at 1000 iterations")) + geom_vline(aes(xintercept = 1000, col = "Vertical line at 1000 iterations"), alpha = 0.5)
 ```
 
 
-??????????????????? should we get rid of the burn-in period for these plots?
-
-In Figure \ref{fig:trace_plot_multiple} we see an example where the burn-in of 1000 iterations is not enough to converge to the posterior distribution. Even though both chains appear to converge to the same distribution, it is not until around iteration 2000 that realization 1 appear to have converged. For the previous iterations it is stuck at a local minima for $t_1$ around 1940. This illustrates the importance of running the MCMC algorithm long enough and from multiple initial conditions to determine if convergence has actually been reached. In the end these two new realizations seem to converge to the same distribution, supporting our belief that we for the first realization reached convergence during our burn-in period. Based on the three realizations the mixing properties of the algorithm appear quite good, as the Markov chain reaches the posterior fairly quickly and moves quickly around the posterior modes. The very low autocorrelation for lag larger than 10 that we observe is another indication that the algorithm mixes well.
+In Figure \ref{fig:trace_plot_multiple} we see an example where the burn-in of 1000 iterations is barely enough to converge to the posterior distribution. For the previous iterations it is stuck at a local mamxima for $t_1$ around 1940. This illustrates the importance of running the MCMC algorithm long enough and from multiple initial conditions to determine if convergence has actually been reached. In the end these two new realizations seem to converge to the same distribution, supporting our belief that we for the first realization reached convergence during our burn-in period. Based on the three realizations the mixing properties of the algorithm appear quite good, as the Markov chain reaches the posterior fairly quickly and moves quickly around the posterior modes. The very low autocorrelation for lag larger than 10 that we observe is another indication that the algorithm mixes well.
 
 
 ## 6)
@@ -579,23 +599,13 @@ From Figure \ref{fig:trace_plot_low_d} we observe that for $d \leq 5$ the algori
 
 ## 7)
 
-In this task we define and implement a block Metropolis–Hastings algorithm for $\pi(\vect \theta | \vect x)$ using the two block proposals defined below. To increase readability we will write out expressions for the full conditionals, proposal distributions and acceptance probabilites without corresponding iteration indexes. This will be done for the whole rest of the problem.
+In this task we define and implement a block Metropolis–Hastings algorithm for $\pi(\vect \theta | \vect x)$ using the two block proposals defined below. Each block proposal will take turns being proposed for each iteration, i.e block proposal 1 will be used for all odd iterations and block proposal 2 will be used for all even iterations. To increase readability we will write out expressions for the full conditionals, proposal distributions and acceptance probabilites without corresponding iteration indexes. This will be done for the whole rest of the problem.
 
 
-### 7a) 
-The first version uses a block proposal for $(t_1, \lambda_0, \lambda_1)$ keeping $\beta = \theta^\beta$ unchanged. We generate the potential new values $(\tilde t_1, \tilde \lambda_0, \tilde \lambda_1) = \tilde \theta^{- \beta}$ by first generating $\tilde t_1 = \tilde \theta ^{t_1}$ from a normal distribution centered at the current value of $t_1$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1) = (\tilde \theta^{\lambda_0}, \tilde \theta^{\lambda_1}$ from their joint full conditionals inserted the potential new value $\tilde t_1$, i.e $\pi(\lambda_0, \lambda_1 | \vect x, \tilde t_1, \beta)$.
+### Block proposal 1) 
+The first block proposal is a block proposal for $(t_1, \lambda_0, \lambda_1)$ keeping $\beta = \theta^\beta$ unchanged. We generate the potential new values $(\tilde t_1, \tilde \lambda_0, \tilde \lambda_1) = \tilde \theta^{- \beta}$ by first generating $\tilde t_1 = \tilde \theta ^{t_1})$ from a normal distribution centered at the current value of $t_1$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1) = (\tilde \theta^{\lambda_0}, \tilde \theta^{\lambda_1}$ from their joint full conditionals inserted the potential new value $\tilde t_1$, i.e $\pi(\lambda_0, \lambda_1 | \vect x, \tilde t_1, \beta)$.
 
-?????????????????????????????????????????++ is lambda0 and lambda 1 independent (joint conditional)
-
-As we still use the full conditional of $\beta$ as proposal distribution for $\beta$ we get the same expression for the proposal distribution and acceptance probability as respectively equation (\ref{eq:fc_beta_np}) and (\ref{eq:accept_beta}), i.e
-\begin{align*}
-Q(\tilde \theta_{i}^{\beta} | \theta_{i-1}^{\beta}, \vect \theta_{i-1}^{- \beta}) &= \pi (\tilde \theta_{i}^{\beta} | \vect \theta_{i-1}^{- \beta})
-= \frac{(1 + \lambda_0 + \lambda_1)^6}{\Gamma(6)} \frac{1}{\tilde \beta^5} e^{\frac{-(1 + \lambda_0 + \lambda_1)}
-{\tilde \beta}} \\
-\alpha(\tilde \theta_{i}^{\lambda_0} | \theta_{i-1}^{\lambda_0}, \vect \theta_{i-1}^{- \lambda_0})& = 1 
-\end{align*}
-
-As $\lambda_0$ and $\lambda_1$ are independent given $\beta$ and $t_1$ their joint full conditional is
+First we want to find the joint posterior distribution that will be used to calculate the acceptance probability of the block proposal. As $\lambda_0$ and $\lambda_1$ are independent given $\beta$ and $t_1$ their joint full conditional is
 
 \begin{align*}
 \pi(\lambda_0, \lambda_1 | \vect x, t_1, \beta)
@@ -613,15 +623,13 @@ Using that the joint conditional of $(t_1, \lambda_0, \lambda_1)$ is proportiona
 \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}, \qquad  \lambda_0 \geq 0, \lambda_1 \geq 0, t_1 \in [t_0, t_2].
 \end{align*}
 
-The proposal distribution of $t_1$ is a normally distributed random walk
+Next we specify the proposal distributions. The proposal distribution of $t_1$ is a normally distributed random walk
 
 \begin{align*}
 \tilde \theta^{t_1} &\sim \mathcal{N} (\theta_{i-1}^{t_1}, \sigma^2) \\
  Q(\tilde \theta_i^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{-t_1}) &=
  \frac{1}{\sqrt{2 \pi} \sigma} e^{\frac{-1}{2 \sigma^2} (\tilde t_1 - t_1)^2 }
 \end{align*}
-
-??????????????????????????????? should proposal function for lambda0 and lambda1 be the same?
 
 The proposal function for $\lambda_0$ and $\lambda_1$ is the joint full conditional and due to the independence of $\lambda_0$ and $\lambda_1$ given $\beta$ and $t_1$, the proposal functions are still given by
 
@@ -638,6 +646,7 @@ Q(\tilde \theta_{i}^{\lambda_1} | \theta_{i-1}^{\lambda_1}, \tilde \theta_{i}^{t
 
 Here $\vect \theta_{i-1}^{\{ j,k\}} = [\theta_i^1, \dots, \theta_{i}^{j-1}, \theta_{i-1}^{j+1}, \dots, \theta_{i-1}^{k-1}, \theta_{i-1}^{k+1}, \theta_{i-1}^4]$. 
 The block acceptance probability becomes
+
 
 \begin{align*}
 \alpha (\tilde{\vect \theta_i}^{-\beta} | \theta_i^{\beta})
@@ -656,12 +665,13 @@ The block acceptance probability becomes
 {Q(\tilde \lambda_0, \tilde \lambda_1| \tilde t_1, \beta)}
 \right \} \\
 &=
+\min \Bigg \{1,
 \frac{e^{- \tilde \lambda_0 (\tilde t_{1} - t_0) - \tilde \lambda_1 (t_{2} - \tilde t_1) - \frac{\tilde \lambda_0 + \tilde \lambda_1 + 1}{\beta}}
 \tilde \lambda_0^{\tilde y_0 + 1} \tilde \lambda_1^{\tilde y_1 + 1}}
 {e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
 \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}}
 \frac{e^{\frac{-1}{2 \sigma^2} (t_1 - \tilde t_1)^2 }}{e^{\frac{-1}{2 \sigma^2} (\tilde t_1 -t_1)^2 }} \\
-& \quad \cdot
+& \hspace{1.7cm} \cdot
 \frac
 {\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
 \lambda_0^{ y_0 + 1} e^{- \lambda_0( t_1 - t_0 + \frac{1}{\beta})}}
@@ -671,12 +681,15 @@ The block acceptance probability becomes
 {\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma( y_1+2)}
 \lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\beta})}}
 {\frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}
-\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}} \\
+\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}} 
+\Bigg \} \\
 &=
+\min \Bigg \{1,
 \frac{e^{- \tilde \lambda_0 (\tilde t_{1} - t_0) - \tilde \lambda_1 (t_{2} - \tilde t_1) - \frac{\tilde \lambda_0 + \tilde \lambda_1 + 1}{\beta}}
 \tilde \lambda_0^{\tilde y_0 + 1} \tilde \lambda_1^{\tilde y_1 + 1}}
 {e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
-\lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}}
+\lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}} \\
+& \hspace{1.7cm} \cdot
 \frac
 {\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
 \lambda_0^{ y_0 + 1} e^{- \lambda_0( t_1 - t_0 + \frac{1}{\beta})}}
@@ -686,36 +699,24 @@ The block acceptance probability becomes
 {\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma( y_1+2)}
 \lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\beta})}}
 {\frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}
-\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}}
+\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}} 
+\Bigg \} \\
+&=
+\min \Bigg \{1,
+\frac
+{\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}}
+{\frac{(\tilde t_1 - t_0 + \frac{1}{\beta})^{\tilde y_0+2}}{\Gamma(\tilde y_0+2)}}
+\frac
+{\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma( y_1+2)}}
+{\frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}}
+\Bigg \}
 \end{align*}
 
 To avoid numerical issues and increase efficience the computations of block acceptance probability is in the code performed on log-scale.
 
-### 7b)
+### Block proposal 2)
 
-The second block-proposal algorithm is defined as follows. A block proposal for $(\beta_0, \lambda_0, \lambda_1) = \theta^{-t_1}$ keeping $t_1$ unchanged. We generate the potential new values $(\tilde \beta_0, \tilde \lambda_0, \tilde \lambda_1) = \tilde \theta^{-t_1}$ by first generating $\tilde \beta = \tilde \theta^{\beta}$ from a normal distribution centered at the current value $\beta$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1)$ from their resulting joint full conditional inserted $\tilde \beta$, i.e $\pi (\tilde \lambda_0, \tilde \lambda_1 | \vect x, t_1, \tilde \beta)$.
-
-The proposal distribution of $t_1$ is the same as the one used in the single site random walk, i.e uniform random walk distributed.
-
-\begin{align*}
-\tilde \theta_{i}^{t_1} \sim \mathrm{Uniform}(\theta_{i-1}^{t_1} - d, \theta_{i-1}^{t_1} + d) \\
-Q(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1}) = \frac{1}{2d}
-\end{align*}
-
-Since the proposal distribution is symmetric around the current value, that is $Q(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1}) = Q(\theta_{i-1}^{t_1} | \tilde \theta_{i}^{t_1}, \vect \theta_{i-1}^{- t_1})$, the acceptance probability becomes
-
-\begin{align*}
-\alpha(\tilde \theta_{i}^{t_1} | \theta_{i-1}^{t_1}, \vect \theta_{i-1}^{- t_1})& = 
-\min \left \{ 1, 
-\frac{\pi (\tilde \theta^{t_1} |  \vect \theta_{i-1}^{-t_1})}{\pi (\theta_{i-1}^{t_1} |  \vect \theta_{i-1}^{-t_1})} 
-\right \}
-= \min \left \{1,
-\frac{e^{\tilde t_1 (\lambda_1 - \lambda_0)} \lambda_0^{\tilde{y_0} + 1} \lambda_1^{\tilde{y_1} + 1}}{e^{t_1 (\lambda_1 - \lambda_0)} \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1}}
-\right \} \\
-&= \min \left \{1,
-e^{(\tilde t_1 - t_1) (\lambda_1 - \lambda_0)} \lambda_0^{\tilde y_0 - y_0} \lambda_1^{\tilde{y_1} - y_1}
-\right \}.
-\end{align*}
+The second block-proposal is defined as follows. A block proposal for $(\beta_0, \lambda_0, \lambda_1) = \theta^{-t_1}$ keeping $t_1$ unchanged. We generate the potential new values $(\tilde \beta_0, \tilde \lambda_0, \tilde \lambda_1) = \tilde \theta^{-t_1}$ by first generating $\tilde \beta = \tilde \theta^{\beta}$ from a normal distribution centered at the current value $\beta$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1)$ from their resulting joint full conditional inserted $\tilde \beta$, i.e $\pi (\tilde \lambda_0, \tilde \lambda_1 | \vect x, t_1, \tilde \beta)$.
 
 The proposal distribution of $\beta$ is a normally distributed random walk
 
@@ -725,9 +726,7 @@ The proposal distribution of $\beta$ is a normally distributed random walk
  \frac{1}{\sqrt{2 \pi} \sigma} e^{\frac{-1}{2 \sigma^2} (\tilde \beta - \beta)^2 }.
 \end{align*}
 
-
-
-Using the same rasoning as in task A7, we get that since $\lambda_0$ and $\lambda_1$ are independent given $\beta$ and $t_1$ their joint full conditional is
+Using the same reasoning as in task A7, we get that since $\lambda_0$ and $\lambda_1$ are independent given $\beta$ and $t_1$ their joint full conditional is
 
 \begin{align*}
 \pi(\lambda_0, \lambda_1 | \vect x, t_1, \beta)
@@ -779,40 +778,50 @@ The block acceptance probability becomes
 {Q(\tilde \lambda_0, \tilde \lambda_1| t_1, \tilde \beta)}
 \right \} \\
 &=
+\min \Bigg \{1,
 \frac
 {e^{-\tilde \lambda_0 (t_{1} - t_0) - \tilde \lambda_1 (t_{2} - t_1) - \frac{\tilde \lambda_0 + \tilde \lambda_1 + 1}{\tilde \beta}}
 \tilde \lambda_0^{y_0 + 1} \tilde \lambda_1^{y_1 + 1} \tilde \beta^{-5}}
 {e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
 \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1} \beta^{-5}}
 \frac{e^{\frac{-1}{2 \sigma^2} (\beta - \tilde \beta)^2 }}{e^{\frac{-1}{2 \sigma^2} (\tilde \beta - \beta)^2 }} \\
-& \quad \cdot
+&\hspace{1.7cm} \cdot
 \frac
 {\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
 \lambda_0^{ y_0 + 1} e^{- \lambda_0( t_1 - t_0 + \frac{1}{\beta})}}
-{\frac{(\tilde t_1 - t_0 + \frac{1}{\beta})^{\tilde y_0+2}}{\Gamma(\tilde y_0+2)}
-\tilde \lambda_0^{\tilde y_0 + 1} e^{-\tilde \lambda_0(\tilde t_1 - t_0 + \frac{1}{\beta})}}
+{\frac{(t_1 - t_0 + \frac{1}{\beta})^{y_0+2}}{\Gamma(y_0+2)}
+\tilde \lambda_0^{y_0 + 1} e^{-\tilde \lambda_0(t_1 - t_0 + \frac{1}{\beta})}}
 \frac
-{\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma( y_1+2)}
-\lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\beta})}}
-{\frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}
-\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}} \\
+{\frac{(t_2 - t_1 + \frac{1}{\tilde \beta})^{y_1+2}}{\Gamma( y_1+2)}
+\lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\tilde \beta})}}
+{\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma(y_1+2)}
+\tilde \lambda_1^{y_1 + 1} e^{-\tilde \lambda_1(t_2 -  t_1 + \frac{1}{\tilde \beta})}} 
+\Bigg \} \\
 &=
+\min \Bigg \{1,
 \frac
 {e^{-\tilde \lambda_0 (t_{1} - t_0) - \tilde \lambda_1 (t_{2} - t_1) - \frac{\tilde \lambda_0 + \tilde \lambda_1 + 1}{\tilde \beta}}
 \tilde \lambda_0^{y_0 + 1} \tilde \lambda_1^{y_1 + 1} \tilde \beta^{-5}}
 {e^{-\lambda_0 (t_{1} - t_0) - \lambda_1 (t_{2} - t_1) - \frac{\lambda_0 + \lambda_1 + 1}{\beta}}
 \lambda_0^{y_0 + 1} \lambda_1^{y_1 + 1} \beta^{-5}} \\
-& \quad \cdot
+& \hspace{1.7cm} \cdot
 \frac
 {\frac{( t_1 - t_0 + \frac{1}{\beta})^{ y_0+2}}{\Gamma(y_0+2)}
-\lambda_0^{ y_0 + 1} e^{- \lambda_0( t_1 - t_0 + \frac{1}{\beta})}}
-{\frac{(\tilde t_1 - t_0 + \frac{1}{\beta})^{\tilde y_0+2}}{\Gamma(\tilde y_0+2)}
-\tilde \lambda_0^{\tilde y_0 + 1} e^{-\tilde \lambda_0(\tilde t_1 - t_0 + \frac{1}{\beta})}}
+\lambda_0^{ y_0 + 1} e^{- \lambda_0(t_1 - t_0 + \frac{1}{\beta})}}
+{\frac{(t_1 - t_0 + \frac{1}{\tilde \beta})^{y_0+2}}{\Gamma(y_0+2)}
+\tilde \lambda_0^{y_0 + 1} e^{-\tilde \lambda_0( t_1 - t_0 + \frac{1}{\beta})}}
 \frac
 {\frac{(t_2 - t_1 + \frac{1}{\beta})^{y_1+2}}{\Gamma( y_1+2)}
-\lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\beta})}}
-{\frac{(t_2 - \tilde t_1 + \frac{1}{\beta})^{\tilde y_1+2}}{\Gamma(\tilde y_1+2)}
-\tilde \lambda_1^{\tilde y_1 + 1} e^{-\tilde \lambda_1(t_2 - \tilde t_1 + \frac{1}{\beta})}}
+\lambda_1^{ y_1 + 1} e^{- \lambda_1(t_2 - t_1 + \frac{1}{\tilde \beta})}}
+{\frac{(t_2 - t_1 + \frac{1}{\tilde \beta})^{ y_1+2}}{\Gamma(y_1+2)}
+\tilde \lambda_1^{y_1 + 1} e^{-\tilde \lambda_1(t_2 -  t_1 + \frac{1}{\tilde \beta})}}
+\Bigg \} \\
+&=
+\min \Bigg \{1,
+\frac{e^{\frac{-1}{\tilde \beta}} \tilde \beta ^{-5}} {e^{\frac{-1}{\beta}} \beta ^{-5}}
+\left ( \frac{t_1 - t_0 + \frac{1}{\beta}} {t_1 - t_0 + \frac{1}{\tilde \beta}}\right)^{y_0+2}
+\left ( \frac{t_2 - t_1 + \frac{1}{\beta}} {t_2 - t_1 + \frac{1}{\tilde \beta}}\right)^{y_1+2}
+\Bigg \}
 \end{align*}
 
 Again, to avoid numerical issues and increase efficience the computations of block acceptance probability is in the code performed on log-scale.
@@ -1014,31 +1023,41 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
   n.accepted.block1 = 0 # keep track of number of accepted block proposals
   n.accepted.block2 = 0 # keep track of number of accepted t1 proposals (if applicable)
   for (i in 2:(n+K)) {
-    # simulate new t1, lambda0 and lambda1 value from first block sample. Get corresponding new y value
-    new.block.variables = 
-      sample.block.t1.normal.walk.and.lambdas(t1.values[i-1], lambda0.values[i-1], lambda1.values[i-1],
-                                              beta.values[i-1], sigma.t1, t0, t2, y, dates)
-
-    t1.values[i] = new.block.variables$t1
-    lambda0.values[i] = new.block.variables$lambda0
-    lambda1.values[i] = new.block.variables$lambda1
-    
-    y = new.block.variables$y
-    n.accepted.block1 = n.accepted.block1 + new.block.variables$accepted
-
-    
-    # simulate new beta, lambda0 and lambda1 value. Get corresponding new y value
-    new.block.variables = sample.block.beta.normal.walk.and.lambdas(beta.values[i-1], lambda0.values[i],
-                                                                    lambda1.values[i], t1.values[i], sigma.beta, t0,
-                                                                    t2, y, dates)
+    if (i %% 2 == 0) {
+      # simulate new t1, lambda0 and lambda1 value from first block sample. Get corresponding new y value
+      new.block.variables = 
+        sample.block.t1.normal.walk.and.lambdas(t1.values[i-1], lambda0.values[i-1], lambda1.values[i-1],
+                                                beta.values[i-1], sigma.t1, t0, t2, y, dates)
+  
+      t1.values[i] = new.block.variables$t1
+      lambda0.values[i] = new.block.variables$lambda0
+      lambda1.values[i] = new.block.variables$lambda1
       
-    beta.values[i] = new.block.variables$beta
-    lambda0.values[i] = new.block.variables$lambda0
-    lambda1.values[i] = new.block.variables$lambda1
+      y = new.block.variables$y
+      n.accepted.block1 = n.accepted.block1 + new.block.variables$accepted
+      
+      # The value of beta is unchanged from laster iteration
+      beta.values[i] = beta.values[i-1]
+    }
     
-    
-    # keep track of number of accepted block proposals
-    n.accepted.block2 = n.accepted.block2 + new.block.variables$accepted
+    if (i %% 2 == 1) {
+      # simulate new beta, lambda0 and lambda1 value. Get corresponding new y value
+      new.block.variables = sample.block.beta.normal.walk.and.lambdas(beta.values[i-1], lambda0.values[i-1],
+                                                                      lambda1.values[i-1], t1.values[i-1], 
+                                                                      sigma.beta,
+                                                                      t0, t2, y, dates)
+        
+      beta.values[i] = new.block.variables$beta
+      lambda0.values[i] = new.block.variables$lambda0
+      lambda1.values[i] = new.block.variables$lambda1
+      
+      
+      # keep track of number of accepted block proposals
+      n.accepted.block2 = n.accepted.block2 + new.block.variables$accepted
+      
+      # the value of t1 is unchanged from last iteration
+      t1.values[i] = t1.values[i-1]
+    }
   }
   
   # Create a vector with the iteration numbers. The initial values correspond to iteration 0.
@@ -1055,11 +1074,9 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
   return(list(t1 = t1.values, beta = beta.values, lambda0 = lambda0.values, lambda1 = lambda1.values,
               df.parameters = df.parameters, df.parameters.long = df.parameters.long,
               n = n, K = K-1, sigma = sigma.beta, sigma.t1, iter = iter, 
-              percent.block1.accepted = n.accepted.block1 / (n + K - 1),
-              percent.block2.accepted = n.accepted.block2 / (n + K -1)))
+              percent.block1.accepted = n.accepted.block1 / ceiling((n + K - 1) / 2),
+              percent.block2.accepted = n.accepted.block2 / floor((n + K - 1)/2) ))
 }
-
-result = block.mcmc(100, K, df.coal$date, 1,1)
 ```
 
 
@@ -1070,7 +1087,7 @@ result = block.mcmc(100, K, df.coal$date, 1,1)
 sigma.values.t1.low = c(1,3,5)
 sigma.values.beta.low = c(0.1,0.5,1)
 sigma.values.t1.high = c(10,20,50)
-sigma.values.beta.high = c(3,3,3)
+sigma.values.beta.high = c(1,2,3)
 # set number of iterations performed
 n = 20000
 K = 0
@@ -1124,60 +1141,57 @@ plot.for.mutiple.tuning.parameters = function(n, K, sigma.values.t1, sigma.value
     if ( i < length(sigma.values.t1)) str.lists = paste(str.lists, ", ", sep = "")
   }
   
-  print(str.lists)
   # create figure caption. Written in a specific format to be able to show everythin in rmarkdown
-fig.caption.d = paste("\\label{", fig.label, "}Trace plot of the parameters for tuning ",
+fig.caption.tuning = paste("\\label{", fig.label, "}Trace plot of the parameters for tuning ",
 
-                      "parameter $\\{ \\sigma_{t_1}, \\sigma_{\\beta} \\} \\in$ [", str.lists, "] and three different ",
-                      
-                      "initial conditions. The block site MCMC algorithm was run for ", n, " iterations. ",
-                      
-                      "The initial values for realization 1 were; $t_1^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.1$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.1$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.1$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.1$lambda1[1],2), ". ",
+      "parameter $\\{ \\sigma_{t_1}, \\sigma_{\\beta} \\} \\in$ [", str.lists, "] and three different ",
+      
+      "initial conditions. The block site MCMC algorithm was run for ", n, " iterations. ",
+      
+      "The initial values for realization 1 were; $t_1^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.1$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.1$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.1$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.1$lambda1[1],2), ". ",
 
-                      "The initial values for realization 2 were; $t_1^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.2$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.2$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.2$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.2$lambda1[1],2), ". ",
+      "The initial values for realization 2 were; $t_1^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.2$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.2$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.2$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.2$lambda1[1],2), ". ",
 
-                      "The initial values for realization 3 were; $t_1^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.3$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.3$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.3$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
-                      
-                      round(block.mc.test.tuning.3$lambda1[1],2), ".", sep = "")
+      "The initial values for realization 3 were; $t_1^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.3$t1[1],2), ", $\\beta^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.3$beta[1],2) , ", $\\lambda_0^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.3$lambda0[1],2), ", $\\lambda_1^{\\textrm{initial}} =$ ",
+      
+      round(block.mc.test.tuning.3$lambda1[1],2), ".", sep = "")
   # return figure caption
-print(fig.caption.d)
-  return(fig.caption.d)
+  return(fig.caption.tuning)
 }
 ```
 
 
 ```{r, fig.width = 10, fig.height=3, fig.cap = fig_cap_low, eval.after = "fig.cap", fig.show = "hold", out.width = "100%", dependson= "tuning_alg"}
-fig_cap_low = plot.for.mutiple.tuning.parameters(n, K , sigma.values.t1.low, sigma.values.beta.low, "fig:block_tuning_low")
+fig_cap_low = plot.for.mutiple.tuning.parameters(n, K, sigma.values.t1.low, sigma.values.beta.low, "fig:block_tuning_low")
 ```
 
 ```{r, fig.width = 10, fig.height=3, fig.cap = fig_cap_high, eval.after = "fig.cap", fig.show = "hold", out.width = "100%", dependson="tuning_alg"}
 fig_cap_high = plot.for.mutiple.tuning.parameters(n, K , sigma.values.t1.high, sigma.values.beta.high, "fig:block_tuning_high")
 ```
 
-
-
+In Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we plot three realizations from different initial conditions for six combinations of tuning parameters. We do this to evaluate how the tuning parameters affect the burn-in period and mixing properties of the block Metropolis-Hastings algorithm implemented. Similar to the single site algorithm we have tuning parameters related to the expected step length of random walks. While for our single site algorithm the only tuning parameter, $d$, was for the uniform random walk of $t_1$, we have for the block algorithm two tuning parameters $\sigma_{t_1}$ and $\sigma_{\beta}$. These two are respectively the tuning parameter of the normally disttributed random walk of $t_1$ and the normally distributed random walk of $\beta$. Equivalent to what we observed for the single site case, we observe that increasing the tuning parameters related to the random walks monotonically decreases the expected burn-in time. For instance for $\sigma_{t_1} = 1$ and $\sigma_{beta} = 0.1$ we observe from Figure \ref{fig:block_tuning_low} that the burn-in time is around 12000 iterations for one of the realizations, while for $\sigma_{t_1} = 3$ and $\sigma_{t_1} = 0.5$ the burn-in period appear to be completed by iteration 3000 for all three realizations. Another thing we note 
 
 ###########################
 # Exercise B:
@@ -1188,9 +1202,7 @@ library(ggplot2)
 
 g.data <- read.csv("https://raw.githubusercontent.com/johanage/TMA4300/master/Gaussian%20Data.csv", header=FALSE, col.names = "y")
 g.data$t = seq(1, length(g.data$y))
-head(y, n=length(y[,1]))
-ggplot(y, aes(x=seq(length(y[,1])), y=y[,1]) ) +
-  geom_point()
+ggplot(g.data, aes(x=t, y = y)) + geom_point()
 ```
 
 
