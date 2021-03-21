@@ -439,7 +439,7 @@ From Figure \ref{fig:1a_cumplot} it appears that there is a large change in rate
 
 Another diagnostic tool is to examine dependencies of successive MCMC samples. From the autocorrelation plots in Figure \ref{fig:autocorrelation_plot} we observed that for lag 20 and higher there are almost zero correlation between the samples for $t_1$. Additionally, the correlation is almost zero already for lag 5 for both $\lambda_0$ and $\lambda_1$ samples and lag 3 for $\beta$ samples. 
 
-```{r, fig.width=8, fig.height=4, fig.ncol = 2, out.width = "50%", fig.show = "hold", fig.cap = fig.caption.autocorrelation.plot, dependsupon="fig_caption5"}
+```{r, fig.width=8, fig.height=4, fig.ncol = 2, out.width = "50%", fig.show = "hold", fig.cap = fig.caption.autocorrelation.plot, dependson="fig_caption5"}
 df.parameters.after.burn.in = subset(single.mc.result$df.parameters, burn.in == FALSE)
 # Plotting the autocorrelation functions for the parameter samples
 acf(df.parameters.after.burn.in$t1, main = TeX("Autocorrelation for $t_1$ samples"))
@@ -1106,6 +1106,10 @@ block.mcmc = function(n, K, dates, sigma.t1, sigma.beta,
 
 ## 8)
 
+In this task we will run the new algorithm for different values of the tuning parameters and evaluate the burn-in and mixing properties of the algorithm. Additionally we will compare the burn-in and mixing properties of the single site and block Metropolis–Hastings algorithms. Lastly we estimate the marginal posterior distributions.
+
+
+We begin by plotting trace plots for multiple combinations of tuning parameters.
 ```{r tuning_alg}
 # Decide for which tuning parameter combinations the algorithm will be tested
 sigma.values.t1.low = c(1,3,5)
@@ -1228,11 +1232,119 @@ fig_cap_low = plot.for.mutiple.tuning.parameters(n, K, sigma.values.t1.low, sigm
 fig_cap_high = plot.for.mutiple.tuning.parameters(n, K , sigma.values.t1.high, sigma.values.beta.high, "fig:block_tuning_high")
 ```
 
-In Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we plot three realizations from different initial conditions for six combinations of tuning parameters. We do this to evaluate how the tuning parameters affect the burn-in period and mixing properties of the block Metropolis-Hastings algorithm implemented. Similar to the single site algorithm we have tuning parameters related to the expected step length of random walks. While for our single site algorithm the only tuning parameter, $d$, was for the uniform random walk of $t_1$, we have for the block algorithm two tuning parameters $\sigma_{t_1}$ and $\sigma_{\beta}$. These two are respectively the tuning parameter of the normally distributed random walk of $t_1$ and the normally distributed random walk of $\beta$. Equivalent to what we observed for the single site case, we observe that increasing the tuning parameters related to the random walks monotonically decreases the expected burn-in time. For instance for $\sigma_{t_1} = 1$ and $\sigma_{beta} = 0.1$ we observe from Figure \ref{fig:block_tuning_low} that the burn-in time is around 12000 iterations for one of the realizations, while for $\sigma_{t_1} = 3$ and $\sigma_{t_1} = 0.5$ the burn-in period appear to be completed by iteration 3000 for all three realizations. For $\sigma_{t_1} = 10$ and $\sigma_{\beta} = 2$ the convergence appear to be almost instantaneous. Although convergence is reached faster for higher $\sigma_{t_1}$ and $\sigma_{\beta}$ values we again see that there is a trade-off against acceptance probability. By inspection of Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we believe that $\sigma_{t_1} = 8$ and $\sigma_{t_1} = 2$ appear to be a good compromise between fast convergence and high acceptance probability. We will therefore proceed to perform some more diagnostics on the algorithm with this combination of tuning parameteres.
+In Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we plot three realizations from different initial conditions for six combinations of tuning parameters. We do this to evaluate how the tuning parameters affect the burn-in period and mixing properties of the block Metropolis-Hastings algorithm implemented. Similar to the single site algorithm we have tuning parameters related to the expected step length of random walks. While for our single site algorithm the only tuning parameter, $d$, was for the uniform random walk of $t_1$, we have for the block algorithm two tuning parameters $\sigma_{t_1}$ and $\sigma_{\beta}$. These two are respectively the tuning parameter of the normally distributed random walk of $t_1$ and the normally distributed random walk of $\beta$. Equivalent to what we observed for the single site case, we observe that increasing the tuning parameters related to the random walks monotonically decreases the expected burn-in time. For instance for $\sigma_{t_1} = 1$ and $\sigma_{\beta} = 0.1$ we observe from Figure \ref{fig:block_tuning_low} that the burn-in time is around 12000 iterations for one of the realizations, while for $\sigma_{t_1} = 3$ and $\sigma_{t_1} = 0.5$ the burn-in period appear to be completed by iteration 3000 for all three realizations. For $\sigma_{t_1} = 10$ and $\sigma_{\beta} = 2$ the convergence appear to be almost instantaneous. Although convergence is reached faster for higher $\sigma_{t_1}$ and $\sigma_{\beta}$ values we again see that there is a trade-off against acceptance probability. By inspection of Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we believe that $\sigma_{t_1} = 8$ and $\sigma_{\beta} = 3$ appear to be a good compromise between fast convergence and high acceptance probability. We will therefore proceed to perform some more diagnostics on the algorithm with this combination of tuning parameteres.
+
+```{r run_mcmc_block}
+# run the mcmc algorithm for the new chosen tuning parameters
+n = 20000
+K = 1000
+sigma.beta = 3
+sigma.t1 = 8
+set.seed(1)
+block.mcmc.result = block.mcmc(n, K, df.coal$date, sigma.t1, sigma.beta)
+```
+
+Having decided on a pair of tuning parameters, we first check that the chosen burn-in of 1000 iterations is enough. We do this by looking at the trace plot in Figure \ref{fig:trace_plot_block}. From the trace plot it appears that the length of the burn-in period is more than sufficient, with almost instantaneous convergence.
+
+```{r fig_captions8, echo = FALSE}
+# Creating the figure caption
+fig.caption.trace.plot.block = paste("\\label{fig:trace_plot_block} Trace plot of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for a burn-in period of 1000 iterations and then 20000 iterations of a hopefully converged block MCMC algorithm. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(block.mcmc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(block.mcmc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(block.mcmc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(block.mcmc.result$lambda1[1],3), ". The tuning parameter is $\\sigma_{t_1} = 8$ and $\\sigma_{\\beta} = 3$.", sep = "")
+
+fig.caption.autocorrelation.plot.block = paste("\\label{fig:autocorrelation_plot_block}Autocorrelation plot of the parameters $\\beta, \\lambda_0, \\lambda_1$ and $t_1$ for 20000 iterations after discarding the 1000 burn-in samples. The initial values was drawn from the priors and was for this realization; $t_1^{\\textrm{initial}} =$ ", round(block.mcmc.result$t1[1],3), ", $\\beta^{\\textrm{initial}} =$ ", round(block.mcmc.result$beta[1],3), ", $\\lambda_0^{\\textrm{initial}} =$ ", round(block.mcmc.result$lambda0[1],3), ", $\\lambda_1^{\\textrm{initial}} =$ ", round(block.mcmc.result$lambda1[1],3), ". The tuning parameter is $\\sigma_{t_1} = 8$ and $\\sigma_{\\beta} = 3$. ", sep = "")
+```
+
+```{r, fig.width = 10, fig.height = 4, eval.after = "fig.cap", fig.cap = fig.caption.trace.plot.block, dependson=c("fig_captions8", "run_mcmc_block")}
+# Plot trace plots of each parameter for a single realization of the block MCMC
+ggplot(block.mcmc.result$df.parameters.long, aes(x = iter, y = value)) + geom_line() +
+  
+  facet_wrap(~parameters, scale = "free_y") +
+  
+  geom_vline(aes(xintercept = block.mcmc.result$K, col = "Cut off point burn in period"), size = 1) +
+  
+  theme(legend.position="bottom") + guides(col = guide_legend("Line")) +
+  
+  xlab("Iteration") + ylab("Value") +
+
+  ggtitle("Trace plot of the parameters",
+          
+          subtitle = paste("Average acceptance probability for block 1 and block 2 is respectively",
+                           round(block.mcmc.result$percent.block1.accepted,3),
+                           "and",
+                           round(block.mcmc.result$percent.block2.accepted, 3)))
+```
 
 
-###########################
-# Exercise B:
+
+```{r, fig.width=8, fig.height=4, fig.show = "hold", out.width="50%", fig.cap = fig.caption.autocorrelation.plot.block, dependson=c("fig_captions8", "run_mcmc_block")}
+df.parameters.after.burn.in.block = subset(block.mcmc.result$df.parameters, burn.in == FALSE)
+# Plotting the autocorrelation functions for the parameter samples
+acf(df.parameters.after.burn.in.block$t1, main = TeX("Autocorrelation for $t_1$ samples"))
+acf(df.parameters.after.burn.in.block$beta, main = TeX("Autocorrelation for $\\beta$ samples"))
+acf(df.parameters.after.burn.in.block$lambda0, main = TeX("Autocorrelation for $\\lambda_0$ samples"))
+acf(df.parameters.after.burn.in.block$lambda1, main = TeX("Autocorrelation for $\\lambda_1$ samples"))
+```
+
+
+```{r}
+# Finding estimates for effective sample size
+effective.size.block.mcmc = effectiveSize(as.mcmc(df.parameters.after.burn.in.block[,
+c("t1", "beta", "lambda0", "lambda1")]))
+effective.size.block.mcmc
+```
+
+
+Having established that we have reached convergence by the end of the burn-in period, we analyze the autocorrelation of the samples from the posterior. In Figure \ref{fig:autocorrelation_plot_block} the autocorrelation for different lags are plotted for each of the parameters of interest. We observe that for lag larger than 20 there is little correlation between $t_1$ samples and for lag larger than 25 there is little correlation for $\beta$ samples. For the $\lambda_0$ and $\lambda_1$ samples we observe that the autocorrelation is quite small for lag 15 and higher. Although these are decent results we note that compared to the single site algorithm with tuning parameter $d = 10$ evaluated in A5  the autocorrelation decreases a lot slower for the block algorithm. This is especially obvious for $\beta$ samples where we in A5 observed hardly any autocorrelation at all already for lag 1. A large reason for the significantly slower decrease in autocorrelation for $\beta$, and to a degree $\lambda_0$ and $\lambda_1$ also, might be that $\beta$ is no longer updated from the full conditional, but instead through a random normal walk. When updated through the full conditional a new $\beta$-value is almost independent of the previous $\beta$-value (given $t_1, \lambda_0$ and $\lambda_1$ the update is independent of the previous value, but the value of  $t_1, \lambda_0$ and $\lambda_1$ is dependent on the previous $\beta$-value). Additionally, when updated through the full conditional the acceptance probability is exactly 1, while for the block update with these tuning parameters the acceptance probability was only $`r round(block.mcmc.result$percent.block1.accepted, 3)`$, resulting in the $\beta$-value remaining the same for multiple iterations happening much more often. Both of these contribute greatly to the slower decrease in autocorrelation. 
+The fact that $t_1$ is only updated every other iteration might also partially explain why the decrease in autocorrelation for $t_1$ is more than twice as slow as for the single site algorithm in task A5. This is also true for the $\beta$-updates and is another contributing factor to slower decrease in autocorrelation. 
+
+Although algorithm comparison is made difficult due to different tuning parameters and the single site algorithm utilizing uniform random walk while the block algorithm utilizes two normal random walks, it appears that the single site algorithm implemented in task A4 is more efficient. This is also indicated by the estimated effective sample sizes. The estimated effective sample sizes for $t_1, \beta, \lambda_0$ and $\lambda_1$ for the block algorithm with tuning parameters $\sigma_{t_1} = 8$ and $\sigma_{\beta} = 3$ is respectively $[`r toString(round(effective.size.block.mcmc, 2))`]$. Compared to the corresponding estimated effective sample size for the single site algorithm; $[`r toString(round(effective.size.single.site.mcmc, 2))`]$, it is clear that for the same number of iterations we get a lot more effective samples from the single site algorithm.
+
+Comparing the burn-in of the single site and block algorithms is diffult due to the same reasons as mentioned above. As the burn-in period is heavily dependent upon the choice of tuning parameters we can get the burn-in period almost arbitarily small for both algorithms when applied to this problem. Combined with the fact that they utilizes different types of random walks and the tuning parameters are therefore not that easily compared, we struggle to determine with any certainty which algorithm has the best burn-in properties. We do, however, conclude that they both appear to have really fast convergence for this problem if the tuning parameters are chosen appropriately.
+
+Next we want to estimate the marginal posterior distributions. As we concluded that the single site algorithm appeared more efficent, we will use this algorithm to estimate the marginal posteriors.
+
+```{r long_run_single_site}
+# run the single site algorithm for many iterations
+n = 1000000
+K = 10000
+d = 10
+set.seed(1)
+single.mc.result.long.run = single.mcmc(n, K , df.coal$date, d)
+```
+
+
+```{r, fig.width = 10, fig.height = 4, fig.cap = fig.caption.histogram.plot.long.run, dependson=c("long_run_single_site", "fig_cap_long_run_hist"), fig.cap = "\\label{fig:hist_marginals}Estimates of the marginal posterior distributions based on 1000000 samples from the single site MCMC algorithm with tuning parameter $d = 10$."}
+# Estimating the mean of the marginal posteriors
+mean.t1 = mean(single.mc.result.long.run$t1)
+mean.beta = mean(single.mc.result.long.run$beta)
+mean.lambda0 = mean(single.mc.result.long.run$lambda0)
+mean.lambda1 = mean(single.mc.result.long.run$lambda1)
+
+cov.lambda0.lambda1 = cov(single.mc.result.long.run$lambda0,
+                          single.mc.result.long.run$lambda1)
+
+df.means = data.frame(Mean = c(mean.t1, mean.beta, mean.lambda0, mean.lambda1),
+                      parameters = c("t1", "beta", "lambda0", "lambda1"))
+
+# Plot histograms of each parameter for a single realization of the single site MCMC
+ggplot(subset(single.mc.result.long.run$df.parameters.long, burn.in == FALSE),
+       aes(x = value, y = ..density..)) + geom_histogram(colour = "lightgrey", bins = 100) +
+  geom_vline(data = df.means, aes(xintercept = Mean, col = "Mean of the posterior marginal")) + theme(legend.position = "bottom") + guides(col = guide_legend("Vertical lines")) +
+  facet_wrap(~parameters, scale = "free") + ggtitle("Estimates of posterior marginals")
+```
+
+In Figure \ref{fig:hist_marginals} the estimated marginal posterior distributions $\pi(t_1 | \vect x), \pi(\beta | \vect x), \pi(\lambda_0 | \vect x)$ and $\pi(\lambda_1 | \vect x)$ is plotted. The estimates are based on one million samples from the single site MCMC algorithm. As discussed in task A5 the estimated posterior marginals appear very reasonable. We also estimate the mean of $t_1, \lambda_0$ and $\lambda_1$ along with the covariance between $\lambda_0$ and $\lambda_1$.
+
+\begin{align*}
+  \E [t_1 | \vect x] &= `r mean.t1` \\
+  \E [\lambda_0 | \vect x] &= `r mean.lambda0` \\
+  \E [\lambda_1 | \vect x] &= `r mean.lambda1` \\
+  \Cov [\lambda_0, \lambda_1] &= `r cov.lambda0.lambda1`.
+\end{align*}
+
+We note that $\lambda_0 | \vect x$ and $\lambda_1 | \vect x$ appear to be practically independent of each other.
+
+
+#  Problem B:
 
 Loading the dataset from github
 ```{r}
@@ -1380,7 +1492,6 @@ df.inla.long = pivot_longer(df.inla, -t, names_to = "lines")
 ggplot(df.inla.long, aes(x = t, y = value)) + geom_line(aes(col = lines)) + geom_point(aes(x = t, y = y, col = "y"), data = g.data) +
   guides(col = guide_legend("Line/Points")) + scale_color_discrete(label=c("Mean of eta", "Mean of linear predictor", "0.025 quantile of eta", "0.975 quantile of eta", "y"))
 ggsave("1.jpg", width = 6, height = 3, path = "C:/trash/")
-
 ```
 
 
