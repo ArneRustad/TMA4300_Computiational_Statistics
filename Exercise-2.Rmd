@@ -37,6 +37,9 @@ library(coda)
 library(INLA)
 library(mvtnorm)
 library(MASS)
+library(ggridges)
+library(grDevices)
+library(matrixcalc)
 ```
 
 # Problem A
@@ -163,9 +166,9 @@ Here $\beta$ is $\textrm{Inverse Gamma}(4, 1 + \lambda_0 + \lambda_1)$ distribut
 
 ## 4)
 
-In this task we want to implement a single site MCMC algorithm for the posterior distribution $\pi(\vect{\theta} | \vect{x})$. Since three out of four full conditionals are known distributions we implement a Hybrid Gibbs sampler (Metropolis-within-Gibbs). This way three out of four components can be sampled very efficiently.
+In this task we want to implement a single site MCMC algorithm for the posterior distribution $\pi(\vect{\theta} | \vect{x})$. Since three out of four full conditionals are known distributions we implement a Hybrid Gibbs sampler (Metropolis-within-Gibbs). This way three out of four components can be sampled efficiently.
 
-Before we proceed we want to determine some notation. Let $\vect \theta_i$ be ith component vector in the MCMC algorithm and let $Q(\tilde \theta ^j | \theta_{i-1}^j, \vect \theta_{i-1}^{-j})$ be the proposal distribution for component j at the ith iteration where $\tilde \theta^j$ is the proposal. Here $\vect \theta_{i-1}^{-j} = [\theta_{i}^1, \dots, \theta_{i}^{j-1}, \theta_{i-1}^{j+1}, \dots, \theta_{i-1}^4]$ in accordance with the definition in task A3. The corresponding acceptance probability of the proposal for component $j$ at iteration $i$ is denoted $\alpha(\tilde \theta^j | \vect \theta_{i-1}^j,  \theta_{i-1}^{-j})$ and can be expressed as
+Before we proceed we want to determine some notation. Let $\vect \theta_i$ be i'th component vector in the MCMC algorithm and let $Q(\tilde \theta ^j | \theta_{i-1}^j, \vect \theta_{i-1}^{-j})$ be the proposal distribution for component j at the i'th iteration where $\tilde \theta^j$ is the proposal. Here $\vect \theta_{i-1}^{-j} = [\theta_{i}^1, \dots, \theta_{i}^{j-1}, \theta_{i-1}^{j+1}, \dots, \theta_{i-1}^4]$ in accordance with the definition in task A3. The corresponding acceptance probability of the proposal for component $j$ at iteration $i$ is denoted $\alpha(\tilde \theta^j | \vect \theta_{i-1}^j,  \theta_{i-1}^{-j})$ and can be expressed as
 
 
 $$\alpha(\tilde \theta^j | \theta_{i-1}^j,  \vect \theta_{i-1}^{-j})
@@ -194,7 +197,7 @@ Q(\tilde \theta_{i}^{\beta} | \theta_{i-1}^{\beta}, \vect \theta_{i-1}^{- \beta}
 {\tilde \beta}}
 \end{align}
 
-Note that for readability the iteration index is excluded from $t_1, \lambda_0, \lambda_1$ and $\beta$ when writing out the full conditionals. This will also be done for other instances where including the iteration indexes would hinder readability drastically. Since all three parameters are updated iteratively from the corresponding univariate full conditionals the acceptance probabilities are always exactly equal to 1, since 
+Note that for readability the iteration index is excluded from $t_1, \lambda_0, \lambda_1$ and $\beta$ when writing out the full conditionals. This will also be done for other instances where including the iteration indexes would hinder readability. Since all three parameters are updated iteratively from the corresponding univariate full conditionals the acceptance probabilities are always exactly equal to 1, since 
 $\alpha(\tilde \theta^j | \theta_{i-1}^j,  \vect \theta_{i-1}^{-j})
 = \min \left \{
 1, \frac{\pi (\tilde \theta^j |  \vect \theta_{i-1}^{-j})}{\pi (\theta_{i-1}^j |  \vect \theta_{i-1}^{-j})} 
@@ -235,7 +238,7 @@ e^{(\tilde t_1 - t_1) (\lambda_1 - \lambda_0)} \lambda_0^{\tilde y_0 - y_0} \lam
 \right \}.
 \end{align*}
 
-Note that again the iteration index is exluded from the longer expressions for readability. We will consistently do this for the longer expressions for the rest of problem A. To avoid numerical owerflow and underlow and increase efficiency the computations of acceptance probability is computed on log-scale.
+Note that again the iteration index is exluded from the longer expressions for readability. We will consistently do this for the longer expressions for the rest of problem A. To avoid numerical overflow and increase efficiency, computations of acceptance probability is computed on log-scale.
 
 
 ```{r}
@@ -419,7 +422,7 @@ ggplot(single.mc.result$df.parameters.long, aes(x = iter, y = value)) + geom_lin
   ggtitle("Trace plot of the parameters")
 ```
 
-From Figure \ref{fig:trace_plot} it appears that the MCMC output has converged to the posterior distribution according to the trace plot. The samples forming a homogene band after the burn-in period (and some time before) indicates convergence. Another positive observations is that the chain seem to move fast through the posterior sample space, indicating low correlation between subsequent samples.
+From Figure \ref{fig:trace_plot} it appears that the MCMC output has converged to the posterior distribution according to the trace plot. The samples forming a homogenous band after the burn-in period (and some time before) indicates convergence. Another positive observations is that the chain seem to move fast through the posterior sample space, indicating low correlation between subsequent samples.
 
 ```{r, fig.width = 10, fig.height = 4, fig.cap = fig.caption.histogram.plot, dependson="fig_caption5"}
 # Plot histograms of each parameter for a single realization of the single site MCMC
@@ -438,7 +441,7 @@ lambda1.estimated = sum(date.explosions > t1.assumed) / (t2-t1.assumed)
 ```
 
 
-From Figure \ref{fig:1a_cumplot} it appears that there is a large change in rate of accidents around 1890, and a smaller around 1945. Consequently, since the histogram plot of parameter $t_1$ in Figure \ref{fig:histogram_plot} is centered around 1890 and has most of it's samples a distance of plus-minus five years away, it indicates that the simulated values of $t_1$ are reasonable. If we assume that 1890 is the correct value of $t_1$ and calulcate the average rate of accidents between $t_0$ and 1890 then we get a rate of $`r round(lambda0.estimated,3)`$. Similarily, if we calculate the average rate of accidents between $t_0$ and 1890 then we get a rate of $`r round(lambda1.estimated,3)`$. Comparing these values against the corresponding histograms of simulated values in Figure \ref{fig:histogram_plot} it appears that the simulated values of $\lambda_0$ and $\lambda_1$ are reasonable.
+From Figure \ref{fig:1a_cumplot} it appears that there is a large change in rate of accidents around 1890, and a smaller around 1945. Consequently, since the histogram plot of parameter $t_1$ in Figure \ref{fig:histogram_plot} is centered around 1890 and has most of it's samples a distance of plus-minus five years away, it indicates that the simulated values of $t_1$ are reasonable. If we assume that 1890 is the correct value of $t_1$ and calulcate the average rate of accidents between $t_0$ and 1890 then we get a rate of $`r round(lambda0.estimated,3)`$. Similarily, if we calculate the average rate of accidents between $t_0$ and 1890 then we get a rate of $`r round(lambda1.estimated,3)`$. Comparing these values against the corresponding histograms of simulated values in Figure \ref{fig:histogram_plot} we conclude that the simulated values of $\lambda_0$ and $\lambda_1$ are reasonable.
 
 Another diagnostic tool is to examine dependencies of successive MCMC samples. From the autocorrelation plots in Figure \ref{fig:autocorrelation_plot} we observed that for lag 20 and higher there are almost zero correlation between the samples for $t_1$. Additionally, the correlation is almost zero already for lag 5 for both $\lambda_0$ and $\lambda_1$ samples and lag 3 for $\beta$ samples. 
 
@@ -611,7 +614,7 @@ In this task we define and implement a block Metropolis–Hastings algorithm for
 
 
 ### Block proposal 1) 
-The first block proposal is a block proposal for $(t_1, \lambda_0, \lambda_1)$ keeping $\beta = \theta^\beta$ unchanged. We generate the potential new values $(\tilde t_1, \tilde \lambda_0, \tilde \lambda_1) = \tilde \theta^{- \beta}$ by first generating $\tilde t_1 = \tilde \theta ^{t_1})$ from a normal distribution centered at the current value of $t_1$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1) = (\tilde \theta^{\lambda_0}, \tilde \theta^{\lambda_1}$ from their joint full conditionals inserted the potential new value $\tilde t_1$, i.e $\pi(\lambda_0, \lambda_1 | \vect x, \tilde t_1, \beta)$.
+The first block proposal is a block proposal for $(t_1, \lambda_0, \lambda_1)$ keeping $\beta = \theta^\beta$ unchanged. We generate the potential new values $(\tilde t_1, \tilde \lambda_0, \tilde \lambda_1) = \tilde \theta^{- \beta}$ by first generating $\tilde t_1 = \tilde \theta ^{t_1}$ from a normal distribution centered at the current value of $t_1$ and thereafter generate $(\tilde \lambda_0, \tilde \lambda_1) = (\tilde \theta^{\lambda_0}, \tilde \theta^{\lambda_1})$ from their joint full conditionals inserted the potential new value $\tilde t_1$, i.e $\pi(\lambda_0, \lambda_1 | \vect x, \tilde t_1, \beta)$.
 
 First we want to find the joint posterior distribution that will be used to calculate the acceptance probability of the block proposal. As $\lambda_0$ and $\lambda_1$ are independent given $\beta$ and $t_1$ their joint full conditional is
 
@@ -1235,7 +1238,7 @@ fig_cap_low = plot.for.mutiple.tuning.parameters(n, K, sigma.values.t1.low, sigm
 fig_cap_high = plot.for.mutiple.tuning.parameters(n, K , sigma.values.t1.high, sigma.values.beta.high, "fig:block_tuning_high")
 ```
 
-In Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we plot three realizations from different initial conditions for six combinations of tuning parameters. We do this to evaluate how the tuning parameters affect the burn-in period and mixing properties of the block Metropolis-Hastings algorithm implemented. Similar to the single site algorithm we have tuning parameters related to the expected step length of random walks. While for our single site algorithm the only tuning parameter, $d$, was for the uniform random walk of $t_1$, we have for the block algorithm two tuning parameters $\sigma_{t_1}$ and $\sigma_{\beta}$. These two are respectively the tuning parameter of the normally distributed random walk of $t_1$ and the normally distributed random walk of $\beta$. Equivalent to what we observed for the single site case, we observe that increasing the tuning parameters related to the random walks monotonically decreases the expected burn-in time. For instance for $\sigma_{t_1} = 1$ and $\sigma_{\beta} = 0.1$ we observe from Figure \ref{fig:block_tuning_low} that the burn-in time is around 12000 iterations for one of the realizations, while for $\sigma_{t_1} = 3$ and $\sigma_{t_1} = 0.5$ the burn-in period appear to be completed by iteration 3000 for all three realizations. For $\sigma_{t_1} = 10$ and $\sigma_{\beta} = 2$ the convergence appear to be almost instantaneous. Although convergence is reached faster for higher $\sigma_{t_1}$ and $\sigma_{\beta}$ values we again see that there is a trade-off against acceptance probability. By inspection of Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we believe that $\sigma_{t_1} = 8$ and $\sigma_{\beta} = 3$ appear to be a good compromise between fast convergence and high acceptance probability. We will therefore proceed to perform some more diagnostics on the algorithm with this combination of tuning parameteres.
+In Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we plot three realizations from different initial conditions for six combinations of tuning parameters. We do this to evaluate how the tuning parameters affect the burn-in period and mixing properties of the block Metropolis-Hastings algorithm implemented. Similar to the single site algorithm we have tuning parameters related to the expected step length of random walks. While for our single site algorithm the only tuning parameter, $d$, was for the uniform random walk of $t_1$, we have for the block algorithm two tuning parameters $\sigma_{t_1}$ and $\sigma_{\beta}$. These two are respectively the tuning parameter of the normally distributed random walk of $t_1$ and the normally distributed random walk of $\beta$. Equivalent to what we observed for the single site case, we observe that increasing the tuning parameters related to the random walks monotonically decreases the expected burn-in time. For instance for $\sigma_{t_1} = 1$ and $\sigma_{\beta} = 0.1$ we observe from Figure \ref{fig:block_tuning_low} that the burn-in time is around 12000 iterations for one of the realizations, while for $\sigma_{t_1} = 3$ and $\sigma_{t_1} = 0.5$ the burn-in period appear to be completed by iteration 3000 for all three realizations. For $\sigma_{t_1} = 10$ and $\sigma_{\beta} = 2$ the convergence appear to be almost instantaneous. Although convergence is reached faster for higher $\sigma_{t_1}$ and $\sigma_{\beta}$ values we again see that there is a trade-off against acceptance probability where the acceptance probabilities decreases when increasing the tuning parameters. By inspection of Figure \ref{fig:block_tuning_low} and \ref{fig:block_tuning_high} we believe that $\sigma_{t_1} = 8$ and $\sigma_{\beta} = 3$ appear to be a good compromise between fast convergence and high acceptance probability. We will therefore proceed to perform some more diagnostics on the algorithm with this combination of tuning parameteres.
 
 ```{r run_mcmc_block}
 # run the mcmc algorithm for the new chosen tuning parameters
@@ -1355,9 +1358,13 @@ In this problem we are going to estimate the posterior marginals of the smooth e
 First we have to load the dataset from github:
 
 ```{r}
-library(ggplot2)
+gauss_data_csv <- read.csv(paste("https://raw.githubusercontent.com/",
+                                 
+"ArneRustad/TMA4300_Computiational_Statistics/main/Gaussian%20Data.csv",
 
-gauss_data_csv <- read.csv("https://raw.githubusercontent.com/ArneRustad/TMA4300_Computiational_Statistics/main/Gaussian%20Data.csv", header=FALSE)
+sep=""),
+
+header=FALSE)
 
 gauss_data = data.frame(y = gauss_data_csv[,1], t = seq(1,length(gauss_data_csv[,1])))
 ```
@@ -1409,7 +1416,7 @@ We will now derive an expression for the precision matrix $\vect{Q}(\theta)$ whe
 \frac{\theta}{2} \sum_{t=3}^T [f_t - 2f_{t-1} + f_{t-2}]^2 = -\frac{1}{2}\vect{f}^T\vect{Q}(\theta)\vect{f} = -\frac{1}{2}\vect{f}^T\vect{Q}_0\theta\vect{f}
 \end{equation*}
 
-where $\matr{Q}_0$ is the precision matrix independent of the hyperparameter $\theta$. The factorization of $\matr{Q}_0$ and $\theta$ done in the above equation is evident from the form of the expression of the left hand side of the equation. By comparing the sum and the matrix form we get that $\sum_{t=3}^T [f_t - 2f_{t-1} + f_{t-2}]^2 = \mathbf{f}^T\mathbf{Q}_0\mathbf{f}$. There are several ways of deriving the expression for the precision matrix, but here we will do it by comparing the elements of the sum:
+where $\matr{Q}_0$ is the precision matrix independent of the hyperparameter $\theta$. The factorization of $\matr{Q}_0$ and $\theta$ done in the above equation is evident from the form of the expression of the left hand side of the equation. By comparing the sum and the matrix form we get that $\sum_{t=3}^T [f_t - 2f_{t-1} + f_{t-2}]^2 = \vect{f}^T\vect{Q}_0\vect{f}$. There are several ways of deriving the expression for the precision matrix, but here we will do it by comparing the elements of the sum:
 
 \begin{align*}
 [f_t - 2f_{t-1} + f_{t-2}]^2 &= f_t^2 + (2f_{t-1})^2 + f_{t-2}^2 + f_t(- 2f_{t-1} + f_{t-2}) - 2f_{t-1}(f_t + f_{t-2}) + f_{t-2}(f_t - 2f_{t-1})\\
@@ -1419,7 +1426,7 @@ where $\matr{Q}_0$ is the precision matrix independent of the hyperparameter $\t
 It follows that in matrix format this is
 
 \begin{equation*}
-\mathbf{f}^T\mathbf{Q}_0\mathbf{f} = \begin{bmatrix}
+\vect{f}^T\vect{Q}_0\vect{f} = \begin{bmatrix}
 f_1 & \hdots & f_T
 \end{bmatrix}
 \begin{vmatrix}
@@ -1439,10 +1446,11 @@ f_T
 .
 \end{equation*}
 
-and then we have the expression for the $\theta$ dependent precision matrix $\mathbf{Q}(\theta)$. The algorithm which generates this matrix is implemented below.
+and then we have the expression for the $\theta$ dependent precision matrix $\vect{Q}(\theta)$. The algorithm which generates this matrix is implemented below.
 
 
 ```{r}
+# algorithm for generating the Q matrix
 gen_Q = function(n_samples){
   Q = matrix(0, nrow = n_samples, ncol = n_samples)
    for(i in 1:n_samples){
@@ -1461,45 +1469,25 @@ gen_Q = function(n_samples){
    }
   return(Q)
 }
-
-pi_theta_given_etay = function(Q_matrix, y, eta){
-  ym = as.matrix(y)
-  etam = as.matrix(eta)
-  Q_m = as.matrix(Q_matrix)
-  distr = (2*pi)^(-length(ym))*det(Q_m)*exp(-(1/2)*t(ym - etam)%*%(Q_m + diag(length(Q_m[,1])))%*%(ym - etam) - (1/2)*t(ym)%*%Q_m%*%etam + t(etam)%*%Q_m%*%ym + (1/2)*t(etam)%*%Q_m%*%etam)
-  return(distr)
-}
-
-#Generating the precision matrix from the random walk sum
-Q_nbn = gen_Q(n_samples = length(gauss_data[,1]))
-#print to confirm correct form
-#print(Q_nbn)
-
-#trying to generate sigma
-sigma = solve(Q_nbn + diag(length(gauss_data[,1])))
-
-eta0 = gauss_data + runif(n= length(gauss_data), min = 0.1, max = 0.2)
-test = pi_theta_given_etay(Q_matrix = Q_nbn, y = gauss_data, eta = eta0)
-
 ```
 
 Integrated Nested Laplace Approximations is a way to do inference on latent Gaussian models (LGM) under the following assumptions:
 
-1. Each data point depends only on one of the elements in the latent Gaussian field, $\mathbf{x}$, which is the linear predictor such that the likelihood can be written as:
+1. Each data point depends only on one of the elements in the latent Gaussian field, $\vect{x}$, which is the linear predictor such that the likelihood can be written as:
 
 \begin{equation*}
-\mathbf{y}|\mathbf{x}, \vect \theta \sim \prod_i \pi (y_i, \eta_i, \vect{\theta}). 
+\vect{y}|\vect{x}, \vect \theta \sim \prod_i \pi (y_i, \eta_i, \vect{\theta}). 
 \end{equation*} 
 
 2. The size of the hyperparameter vector $\theta$ is small, for example $\theta<15$.
 
-3. The latent field $\mathbf{x}$, can be large but it is endowed with some conditional independence (Markov) properties so that the precision matrix $Q(\vect{\theta})$ is sparse.
+3. The latent field $\vect{x}$, can be large but it is endowed with some conditional independence (Markov) properties so that the precision matrix $Q(\vect{\theta})$ is sparse.
 
 4. The linear predictor depends linearly on the unknown smooth function of covariates.
 
 5. The inferential interest lies in the univariate posterior marginals $\pi(x_i|y)$ and $\pi(\theta_j|y)$ rather than in the joint posterior $\pi(x, \theta|y)$.
 
-Since we have assumed each observation $y_i$ to be independently normally distributed around $\eta_t$ with unit variance we obviously have that each data point depends only on one of the elements in the latent Gaussian field. Since we only have one hyperparameter $\theta$, assumption 2 is also satisfied. We have also shown that the precision matrix $Q(\mathbf{\theta})$ is sparse thereby satisfying assumption 3. As we have assumed $\eta_t = f_t$, the linear predictor depends linearly on the unknown smooth function of covariates, proving that assumption 4 is satisfied. Lastly, as we are interested in univariate posterior marginals, we have that assumption 5 is satisfied. Since our chosen model is a LGM we have thereby shown that all the neccecary assumptions to be able to use INLA inference is satisfied.
+Since we have assumed each observation $y_i$ to be independently normally distributed around $\eta_t$ with unit variance we obviously have that each data point depends only on one of the elements in the latent Gaussian field. Since we only have one hyperparameter $\theta$, assumption 2 is also satisfied. We have also shown that the precision matrix $Q(\vect{\theta})$ is sparse thereby satisfying assumption 3. As we have assumed $\eta_t = f_t$, the linear predictor depends linearly on the unknown smooth function of covariates, proving that assumption 4 is satisfied. Lastly, as we are interested in univariate posterior marginals, we have that assumption 5 is satisfied. Since our chosen model is a LGM we have thereby shown that all the neccecary assumptions to be able to use INLA inference is satisfied.
 
 
 
@@ -1507,13 +1495,15 @@ Since we have assumed each observation $y_i$ to be independently normally distri
 
 ## 2)
 
-Now that we have the formal expression of the latent Gaussian we can continue with defining the block Gibbs sampling algorithm that we will use:
+Next we define and implement a block Gibbs sampling algorithm for $\pi(\vect \eta, \theta | y)$ using two block proposals. Since we use Gibbs sampling we use the full conditionals as proposal distributions, that is propose a new value for $\theta$ from $\pi (\theta | \vect y)$ and new $\vect \eta$-vector from $\pi (\vect \eta | \vect y)$. As we propose from the full conditionals the acceptance probability is always exactly 1.
 
-1. Initiate $\eta = \mathbf{0}$ and initiate $\theta$ by sampling $\theta \sim \mathrm{Gamma}(1,1)$.
+The exact algorithm that we will use is
 
-2. Sample $\theta_{new}$ from the full conditional $\pi (\theta|\mathbf{\eta}, \mathbf{y})$.
+1. Initiate $\vect \eta = \vect{0}$ and initiate $\theta$ by sampling $\theta \sim \mathrm{Gamma}(1,1)$.
 
-3. Sample $\eta_{new}$ from the full conditional $\pi (\eta|\mathbf{\theta}, \mathbf{y})$.
+2. Sample $\theta_{new}$ from the full conditional $\pi (\theta|\vect{\eta}, \vect{y})$.
+
+3. Sample $\eta_{new}$ from the full conditional $\pi (\eta|\vect{\theta}, \vect{y})$.
 
 4. Repeat step 2 and 3 until convergence.
 
@@ -1521,18 +1511,569 @@ Now that we have the formal expression of the latent Gaussian we can continue wi
 
 In the block Gibbs sampling algorithm all samples are accepted.
 
-#### Calculating the full conditional $\pi (\theta|\mathbf{\eta}, \mathbf{y})$
-We find an expression for the full conditional of $\theta$ by using that it is proportional to the joint posterior distribution $\pi(\mathbf{\eta}, \theta|\mathbf{y})$:
+
+### Calculating the full conditional $\pi (\theta|\vect{\eta}, \vect{y})$
+
+First we find an expression for the non-normalized joint posterior distribution of $\theta$ and $\vect \eta$
+
+$$
+\begin{aligned}
+\pi(\theta, \vect \eta| \vect{y}) &\propto \pi(\vect{\eta}, \theta|\vect{y}) \\
+&\propto \pi(\vect{y}|\vect{\eta}) \pi(\vect{\eta}|\theta)\pi(\theta) \\
+&\propto \pi(\vect{y}|\vect{\eta}) \pi(\vect{f}|\theta)\pi(\theta)\\
+&\propto \exp\left\{ -\frac{1}{2}(\vect{y} - \vect{\eta})^T(\vect{y} - \vect{\eta})\right\} \theta^{T/2 - 1}\exp\left\{ -\frac{\theta}{2}\vect{\eta}^T\vect{Q}_0\vect{\eta}\right\}e^{-\theta}\\
+\end{aligned}
+$$
+
+We go from the second to the third line in the above equation because $\eta_t = f_t$. We find an expression for the full conditional of $\theta$ by using that it is proportional to the joint posterior distribution $\pi(\vect{\eta}, \theta|\vect{y})$:
 
 
-\begin{equation*}
-\pi(\theta|\eta, \mathbf{y}) \propto \pi(\mathbf{\eta}, \theta|\mathbf{y}) \\
-\pi(\theta|\eta, \mathbf{y}) \propto \pi(\mathbf{y}|\mathbf{\eta}) \pi(\mathbf{\eta}|\theta)\pi(\theta) \\
-\pi(\theta|\eta, \mathbf{y}) \propto \pi(\mathbf{y}|\mathbf{\eta}) \pi(\mathbf{f}|\theta)\pi(\theta)\\
-\end{equation*}
+$$
+\begin{aligned}
+\pi(\theta|\vect \eta, \vect{y}) \propto \exp\left\{ -\frac{1}{2}(\vect{y} - \vect{\eta})^T(\vect{y} - \vect{\eta})\right\} \theta^{T/2 - 1}\exp\left\{ -\frac{\theta}{2}\vect{\eta}^T\vect{Q}_0\vect{\eta}\right\}e^{-\theta}.
+\end{aligned}
+$$
 
 
 
+Finally we get the expression for the full conditional of $\pi (\theta|\vect{\eta}, \vect{y})$
+$$
+\begin{aligned}
+\pi(\theta|\eta, \vect{y}) \propto \theta^{T/2 - 1}\exp\left(-\left(\frac{1}{2}\vect{\eta}^T Q_0 \vect{\eta} + 1\right)\theta \right)
+\end{aligned}
+$$
+The last line of the above equation represents the non-normalized full conditional of $\theta$ and we recognize this as a Gamma-distribution. Using $\mathrm{Gamma}(\alpha, \beta)(\theta)$ where $f(\theta) = \frac{\beta^{\alpha}}{\Gamma(\alpha)}\theta^{\alpha - 1}e^{-\beta \theta}$ as the definition of the Gamma-distribution we get:
+$$
+\begin{aligned}
+\pi(\theta|\vect{\eta}, \vect{y}) \sim \mathrm{Gamma}\left(\alpha = \frac{T}{2}, \beta = \frac{1}{2}\vect{\eta}^T\vect{Q}(\theta)\eta + 1\right)
+\end{aligned}
+$$
+
+### Calculating the full conditional $\pi (\vect{\eta}| \theta, \vect{y})$
+Further we need to derive the expression for the full conditional for $\vect \eta$, $\pi(\vect \eta | \theta, y)$,  to be able to implement the algorithm. Since the full conditional of $\vect \eta$ is proportional to the joint posterior distribution $\pi(\vect{\eta}, \theta|\vect{y})$ we get
+
+$$
+\begin{aligned}
+\pi(\eta | \theta, y) &\propto \exp\left\{ -\frac{1}{2}(\vect{y} - \vect{\eta})^T(\vect{y} - \vect{\eta})\right\} \theta^{T/2 - 1}\exp\left\{ -\frac{\theta}{2}\vect{\eta}^T\vect{Q}_0\vect{\eta}\right\}e^{-\theta}\\
+&\propto \exp\left\{ -\frac{1}{2}(\vect{\eta}^T\vect{y} + \vect{\eta}\vect{y}^T + \vect{\eta}^T\vect{\eta})-\frac{\theta}{2}\vect{\eta}^T\vect{Q}_0\vect{\eta}\right\}\\
+&= \exp\left\{ -\frac{1}{2}(\vect{\eta}^T\vect{y} + \vect{\eta}\vect{y}^T)-\frac{1}{2}\vect{\eta}^T(\vect{Q}_0\theta + \vect{I})\vect{\eta}\right\}
+\end{aligned}
+$$
+
+This can be recognized as the cannonical form of the normal distribution. $\pi(\vect \eta | \theta, \vect y)$ is normal distributed since its prior is normal distributed. The canoncial form of the normal distribution can be written as:
+$$
+\begin{aligned}
+K \exp\left\{ \vect{\eta_{can}}^T\vect{x}-\frac{1}{2}\vect{x}^T\vect{\Lambda}\vect{x}\right\}
+\end{aligned}
+$$
+
+where $\matr \Lambda \equiv \matr \Sigma^{-1}$ where $\matr \Sigma$ represents the covariance matrix and $\vect \mu \equiv \matr \Lambda^{-1} \vect \eta_{can}$. For our particular problem this corresponds to:
+
+
+
+$$
+\begin{aligned}
+\matr \Lambda = \vect{Q}_0\theta + \vect{I}\\
+\matr \Sigma = (\vect{Q}_0\theta + \vect{I})^{-1}\\
+\vect \mu = \matr \Lambda^{-1} \vect \eta_{can} = \matr \Sigma\vect{y} = (\vect{Q}_0\theta + \vect{I})^{-1}\vect{y}
+\end{aligned}
+$$
+
+Finally we end up with an expression for the full conditional $\pi(\vect \eta | \theta, \vect y)$:
+$$
+\begin{aligned}
+\pi(\vect \eta | \theta, \vect y) \sim \mathcal{N}((\vect{Q}(\theta) + \vect{I})^{-1}\vect{y}, (\vect{Q}(\theta) + \vect{I})^{-1})
+\end{aligned}
+$$
+With the two full conditionals defined we can implement the block Gibbs sampling algorithm. This is done in the code chunk below.
+
+```{r}
+
+#setting seed for reproducability
+set.seed(2021)
+
+func_gibbs = function(y, etainit, iter){
+  #define length of the observed data set
+  n_samples = length(y)
+  
+  #init theta values
+  theta = rgamma(n = 1, shape = 1, scale = 1)
+  theta_final = matrix(NA, ncol = 1, nrow = iter)
+  theta_final[1] = theta
+  
+  #generating precision matrix and its incerse
+  Q = gen_Q(n_samples)
+
+  #init eta samples
+  eta_final = matrix(NA, ncol =n_samples, nrow = iter)
+  eta_final[1,] = as.matrix(etainit, ncol = 1, nrow = n_samples)
+  
+  #initiate gibbs sampling
+  for(i in 1:(iter-1)){
+    
+    #gen new theta by sampling from the full conditional
+    alpha = n_samples/2
+    beta = 0.5*t(eta_final[i,])%*%Q%*%eta_final[i,] + 1
+    theta_new = rgamma(n = 1, shape = alpha, rate = beta)
+    theta_final[i + 1] = theta_new
+    
+    #gen the sigma for the full conditional
+    sigmainv = Q*theta_final[i+1] + diag(n_samples)
+    Sigma = solve(sigmainv)
+    
+    #define the parameters of the canonical normal distribution
+    mu_eta = Sigma%*%y
+    eta_new = mvrnorm(n = 1, mu = mu_eta, Sigma = Sigma)
+    eta_final[i+1,] = eta_new
+    
+  }
+  return(list(eta = eta_final, theta = theta_final, iteration = iter))
+}
+#run the gibbs sampling algorithm, setting init eta to 0 vector
+gibbs_algo = func_gibbs(y = gauss_data$y,
+                         etainit = rep(0, time = length(gauss_data$y)), iter = 10000)
+
+#taking the mean of the estimated etas
+mean_gibbs_eta = apply(gibbs_algo$eta, 2, mean)
+xgibbs = seq(1,20)
+
+#generating a data frame for the gibbs sampling
+df_gibbs_mean = data.frame(mean = mean_gibbs_eta, xgibbs = xgibbs)
+df_gibbs = data.frame(eta = gibbs_algo$eta, theta = gibbs_algo$theta, iter = seq(0,gibbs_algo$iteration - 1))
+
+quantiles_eta_mean = apply(gibbs_algo$eta, 2, quantile, probs = c(0.025, 0.975))
+#print(quantiles_eta_mean[1,])
+
+df_gibbs_plot = data.frame(t = xgibbs, mean = mean_gibbs_eta, q1 = quantiles_eta_mean[1,], q2 = quantiles_eta_mean[2,])
+
+```
+
+Moreover we will use the samples to get an estimate for the posterior marginal of the hyperparameter $\theta$, i.e $\pi(\theta| \vect y)$, which we plot as a histogram:
+
+```{r, fig.cap="Histogram plot of the estimated posterior marginal of $\\theta$ from the Gibbs sampler.", fig.width = 5, fig.height = 3}
+#plot distribution of the posterior marginal of theta
+#Here we define the burn in period to be 1000 iterations
+#and therefor remove the 1000 first elements
+ggplot(df_gibbs[-(1:1000),], aes(x=theta, y = ..density..) ) +
+  
+  geom_histogram(bins = 100) + labs(x = TeX("$\\theta$"), y = "Density") +
+  
+  ggtitle(TeX("$\\pi(\\theta | \\textbf{y})$ for the block Gibbs sampler"))
+
+```
+
+A common diagnostic for convergence in MCMC methods is the trace plot where we plot the samples against iteration number. The traceplot of the distribution of $\theta$ is given in Figure \ref{fig:traceplot_single} and in Figure \ref{fig:traceplot_all_etas} is the distribution of each elements in $\vect \eta$ plotted.
+
+```{r, fig.height=5, fig.width= 5, fig.cap="\\label{fig:traceplot_single} Traceplot of $\\theta$ where the red vertical line at 1000 iterations represents the cut-off for the burn-in period.", fig.width = 6, fig.height = 3}
+ggplot(data = df_gibbs, aes(x = iter, y = theta)) + geom_line() +
+  
+  geom_vline(aes(xintercept = 1000, col = "Cut-off Burn-in period")) +
+  
+  xlab("Iterations") + ylab(TeX("$\\theta_{instantaneous}$")) +
+  
+  guides(col = guide_legend("Vline")) +
+  
+  ggtitle(TeX("Traceplot of $\\theta$"))
+```
+
+```{r, fig.height=8, fig.width= 8, fig.cap="\\label{fig:traceplot_all_etas} The traceplots for all $\\eta_t$s."}
+
+df_gibbs_eta_long = pivot_longer(data = df_gibbs[,colnames(df_gibbs)!="theta"], -iter, names_to = "eta")
+df_gibbs_eta_long$t = rep(seq(1,20), times = gibbs_algo$iteration)
+
+#traceplot of all etas
+ggplot(data = df_gibbs_eta_long, aes(x = iter, y = value)) + geom_line() +
+  
+  facet_wrap(~t) + ggtitle(TeX("Trace plot for $\\eta_t$"))
+```
+
+Beforehand we chose a burn-in period of 1000 samples and we use the trace plots to evaluate if the length of the burn-in period is sufficient. From Figure \ref{fig:traceplot_single} we see that the burn in period appear to be sufficient as the convergence seem to be almost instantaneous. This is further supported by Figure \ref{fig:traceplot_all_etas} where we also observe almost instantenous convergence for $\vect \eta$. 
+
+```{r, fig.cap="\\label{fig:quantile_plot_eta_gibbs} Plot of the mean of $\\eta_t$ with a pointwise 95 % confidence interval form the block Gibbs sampling and the data points."}
+df_gibbs_plot_long = pivot_longer(df_gibbs_plot, -t, names_to = "Eta")
+ggplot(data = df_gibbs_plot_long, aes(x = t, y = value, col = Eta)) +
+  
+  geom_line() +
+  
+  geom_point(data = gauss_data, aes(x=t, y=y, col = "y") )+
+  
+  scale_color_discrete(labels = c("Mean", "2.5% quantile", "97.5% quantile", "y")) +
+  
+  ggtitle(TeX(""))
+```
+
+From the samples we can estimate the smooth effect using the mean of each $\eta_t$ and pointwise calculate a $95\%$ confidence bound around the mean. This is shown in Figure \ref{fig:quantile_plot_eta_gibbs}. By inspection of the figure it is clear that the mean of $\eta_t$ is a good fit for the data considering we have approximately equally many points on either side of $\vect{\eta}_\textrm{mean}$.
+
+In Figure \ref{fig:ridge_plot_eta_gibbs} we further investigate the distribution of the elements of the $\vect \eta$-vector. The ridge plot shows the distribution of $\eta_t$ for every time step. The peaks of the distributions should correspond to the mean plot of $\vect \eta$ in Figure \ref{fig:quantile_plot_eta_gibbs}. The mean of $\eta_t$ represents the dashed lines and as expected they align with the peaks of the distribution at each time step. Thus by graphic analysis we can conclude theat the peak distributions are centered at the values of the mean of each $\eta_t$, which is reasonable due to symmetry of the distribution.
+
+```{r, fig.height=8, fig.width= 8, fig.cap="\\label{fig:ridge_plot_eta_gibbs} A ridge plot of the posterior marginal of each $\\eta_t$. Each density plot represents the distribution of $\\vect \\eta$ at time step $t$. The horizontal dotted lines represents the values for the mean of each element in the $\\vect \\eta$-vector."}
+pal <- topo.colors(n = 20)
+ggplot(data = df_gibbs_eta_long, aes(x = value, y = t, group = eta, fill = eta)) +
+  
+  geom_density_ridges(alpha = .8, color = "black",scale = 1.5,
+                      
+                      rel_min_height = .01, lw = 0.2) +
+  
+  
+  geom_vline(data = df_gibbs_plot, aes(xintercept = mean),
+             
+             linetype="dashed", color = pal)+
+  
+  labs(x = TeX("$\\eta$"), y = TeX("$t_i$")) +
+  
+    guides(fill = FALSE) + theme_ridges() + coord_flip() +
+  
+    ggtitle(TeX("$\\pi(\\eta_t | \\textbf{y})$ for the block Gibbs sampler"))
+```
+
+
+\pagebreak
+\newpage
+
+## 3)
+
+### Implementing INLA
+
+To implement INLA we first want to approximate the posterior marginal for the hyperparameter $\theta, \pi(\theta| \vect y)$, using the INLA scheme. We start from:
+
+$$
+\begin{aligned}
+\pi(\theta|y) \propto \frac{\pi(\vect y| \vect \eta, \theta)\pi(\vect \eta|\theta)\pi(\theta)}{\pi(\vect \eta|\theta, \vect y)}
+\end{aligned}
+$$
+
+where:
+
+$$
+\begin{aligned}
+\pi(y_t|\eta_t) &\sim \mathcal{N}(\eta_t, 1); \qquad t = 1, \dots, T\\
+\pi(\vect y | \vect \eta, \theta) &= \prod_{t=1}^T \pi(y_t|\eta_t) \\
+\pi(\vect \eta | \theta) &\sim \mathcal{N}(\vect{0}, (\vect{Q}(\theta))^{-1})\\
+\pi(\vect \eta | \theta, \vect y) &\sim \mathcal{N}((\vect{Q}(\theta) + \vect{I})^{-1}\vect{y}, (\vect{Q}(\theta) + \vect{I})^{-1}),
+\end{aligned}
+$$
+which results in the posterial marginal given by:
+$$
+\begin{aligned}
+\pi(\theta | \vect{y}) \propto \frac{\theta^{T/2 -1}\exp \left( \frac{1}{2}(\vect{y} - \vect{\eta})^T(\vect{y} - \vect{\eta}) - \frac{1}{2}\vect{\eta}^T \vect{Q}(\theta)\vect{\eta} - \theta \right)  }{(\det(\vect{Q}(\theta) + \vect{I}))^{1/2} \exp\left(  \frac{1}{2}\left( (\eta - (\vect{Q}(\theta) + \vect{I})^{-1}\vect{y})^T(\vect{Q}(\theta) + I)(\eta - (\vect{Q}(\theta) + \vect{I})^{-1}\vect{y}) \right) \right) }
+\end{aligned}
+$$
+
+This can be simplified to:
+
+\begin{align}
+\pi(\theta | \vect{y}) \propto \theta^{T/2 - 1}e^{-\theta}\exp\left( \frac{1}{2}\vect{y}^T(\vect{Q}(\theta) + \vect{I})^{-1}\vect{y}  \right)\label{eq:post_marg_theta}
+\end{align}
+
+Note that since the likelihood is Gaussian then also $\pi(\vect \eta|\theta, \vect y)$ is Gaussian.
+By considering a grid, $\{ \theta_k \}$, of values between 0 and 6, $\theta_k \in [0,6]$, we use equation (\ref{eq:post_marg_theta}) as the non-normalized posterior marginal of $\theta$. To estimate the normalizing constant we use
+
+
+$$
+\begin{aligned}
+C = \int_{-\infty}^{\infty}\pi(\theta|\vect y)d\theta\\
+C \approx \sum_{k}\pi(\theta_k| \vect y)\Delta_k
+\end{aligned}
+$$
+
+where $\Delta_k = \theta_k - \theta_{k-1}$. We use $C$ as the approximation for the normalization constant such that we can estimate the normalized posterior marginal $\pi(\theta|\vect{y})$.
+
+```{r}
+#expression for the post marg of theta given y
+pi_theta_given_y = function(n_samples, theta, y, sigma){
+  post_marg = sqrt(det(sigma))*theta^(n_samples/2 - 1)*exp(-theta + (1/2)*t(y)%*%sigma%*%y)
+  return(post_marg)
+}
+
+#calculation of the normalization constant of the post marg of theta given y
+normconst_postmarg = function(post_marginal, n_samples, theta, y, sigma){
+  dth = theta[2] - theta[1]
+  const = 0
+  for(i in 1:(length(theta)-1)){
+    const = const + post_marginal(n_samples, (theta[i] + theta[i+1])/2, y, sigma)*dth
+  }
+  return(const)
+}
+
+#implementing an alogrithm that calculates the posterior marginal of theta
+algo_post_marg_theta = function(n_grid, Q0 = gen_Q(length(gauss_data$y)), y){
+  n_samples = length(Q0[1,])
+  theta = seq(0,6, length.out = n_grid)
+  dth = theta[2] - theta[1]
+  const = 0
+  vec_pi_theta_g_y = rep(NA, length(theta))
+  for(k in 1:(length(theta))){
+    sigma_inv = (Q0*theta[k] + diag(length(Q0[1,])))
+    sigma = solve(sigma_inv)
+    
+    pi_theta_g_y = pi_theta_given_y(n_samples, theta[k], y, sigma)
+    const = const + pi_theta_g_y*dth
+    vec_pi_theta_g_y[k] = pi_theta_g_y
+  }
+  return(list(pm = vec_pi_theta_g_y/const, grid = theta))
+}
+
+#running the algorithm for the post marg for theta
+test_pm_theta0 = algo_post_marg_theta(n_grid = 1000, y = gauss_data$y)
+df_pm_theta = data.frame(theta = test_pm_theta0$pm, grid = test_pm_theta0$grid )
+```
+
+
+```{r, fig.cap="\\label{fig:comp_gib_INLA} Plot of distribution of $\\theta$ from the block Gibbs sampler and the INLA method."}
+
+ggplot(data = df_pm_theta, aes(x=grid, y=theta, col = "INLA est"))+
+  
+  geom_line(size = 1) + 
+  
+  geom_histogram(aes(x=theta, y = ..density.., col = "Gibbs est"),
+                 
+                 data = df_gibbs[-(1:1000),], bins = 50, fill = "blue",
+                 
+                 alpha = 0.3) +
+  
+  xlab(TeX("$\\theta$")) + ylab("Denstiy") +
+  
+  scale_color_manual(values = c("grey","red")) +
+  
+  guides(col = guide_legend(TeX("$\\theta_{est}$")))
+```
+
+From Figure \ref{fig:comp_gib_INLA} we see that the block Gibbs sampler has approximately the same distribution as the INLA estimate.
+
+
+## 4)
+
+We are going to continue and implement the next step in the INLA scheme, which is the approximation of the marginal posterior for the smooth effect, $\pi(\eta_t|y)$. We have that:
+
+
+\begin{align}
+\label{eq:marginal_eta_t}
+\pi(\eta_t|\vect y) &= \int \pi(\eta_t|\vect y, \theta)\pi(\theta|\vect y)d\theta \\
+\pi(\eta_t|\vect y, \theta) &\propto \sqrt{\det((\vect{Q} + \vect{I})^{-1})}\exp\left( -\frac{1}{2}(\vect \eta - (\vect{Q} + \vect{I}))^T(\vect{Q} + \vect{I})(\vect \eta - (\vect{Q} + \vect{I}))\right) \nonumber \\
+\pi(\eta_t|\vect y, \theta) &\sim \mathcal{N}((\vect{Q} + \vect{I})^{-1}\vect{y}, (\vect{Q} + \vect{I})^{-1}) \nonumber
+\end{align}
+
+
+```{r}
+#defining the conditional for eta
+eta_cond = function(eta, sigma, sigmainv, y){
+  det_sigmainv =det(sigmainv)
+  exp_term = exp((1/2)*(t(eta - sigma%*%y)%*%sigmainv%*%(eta - sigma%*%y)))
+  return(det_sigmainv*exp_term)
+}
+
+#implementing the whole inla algorithm
+inla_algo = function(y, Q0 = gen_Q(length(gauss_data$y)), n_grid, i){
+  #assigning number of samples to use in parameters in distributions
+  n_samples = length(y)
+  #initiate theta and etas
+  theta = seq(0,6, length.out = n_grid)
+  etas_grid = seq(-3,3, length.out = n_grid)
+  dtheta = theta[2] - theta[1]
+  #initiate the smooth effect
+  eta_given_y = 0
+  pm_theta_info = algo_post_marg_theta(n_grid = n_grid, y = y)
+  vec_pi_theta_g_y = pm_theta_info$pm
+  #run the inla scheme
+  for(k in 1:(length(theta))){
+    sigma_inv = (Q0*theta[k] + diag(length(y)))
+    sigma = solve(sigma_inv)
+      
+    eta_g_theta_y = dnorm(x = etas_grid, mean = t(sigma[i,])%*%y, sd = sqrt(sigma[i,i]))
+    #eta_g_theta_y = rnorm(n = length(etas_grid), mean = sigma[i,]%*%y, sd = sigma[i,i])
+    eta_given_y = eta_given_y + eta_g_theta_y*vec_pi_theta_g_y[k]*dtheta
+  }
+  #Normalizing the final post marg for eta_10s
+  nc_mp_eta = sum(eta_given_y*dtheta)
+  eta_given_y = eta_given_y/nc_mp_eta
+  #nc_mp_eta = sum(eta_given_y*dtheta)
+  
+  #to check that norm of final marg post for theta equals to 1
+  nc_theta = sum(vec_pi_theta_g_y*dtheta)
+  
+  return(list(samples = eta_given_y, theta = theta,
+              
+              distr_postm = vec_pi_theta_g_y, grid_eta = etas_grid,
+              
+              nc_eta = nc_mp_eta, nc_theta = nc_theta))
+}
+#run INLA algorithm
+inla_done = inla_algo(y = gauss_data$y, n_grid = 100, i = 10)
+
+df_inla = data.frame(eta = inla_done$samples, theta = inla_done$theta,
+                     
+                     distr_pm = inla_done$distr_postm, eta_grid = inla_done$grid_eta)
+```
+
+By using the same grid of $\theta$, $\{ \theta_k \}$, as used in task B3 we now approximate the integral in equation (\ref{eq:marginal_eta_t}) for $t = 10$ to calculate the posterior marginal for the smooth effect $\pi(\eta_{10}|y_{10})$. We use that the marginal posterior of $\eta_t$ can be approximated as:
+
+$$
+\begin{aligned}
+\pi(\eta_t|\vect y) &\approx \sum_k \pi(\eta_t|\vect y, \theta_k)\pi(\theta_k |\vect y)\Delta_k
+\end{aligned}
+$$
+
+Moreover we compare our approximation for $\pi(\eta_{10}|y_{10})$ with the estimation obtained via Gibbs sampling:
+
+```{r,fig.cap="\\label{fig:comp_gibbs_inla_eta_distr} Plot of the distribution of $\\eta_{10}$ as a function of hyperparameter $\\theta$ for both the block Gibbs sampler and the INLA method."}
+#plotting distribution for eta_10 as function of hyperparameter theta
+ggplot(data = df_inla, aes(x=df_inla$eta_grid, y=df_inla$eta, col = "INLA est"))+
+  geom_line(size = 1) + 
+  
+  geom_histogram(aes(x=eta.10, y = ..density.., col = "Gibbs est"),
+                 
+                 data = df_gibbs, bins = 50, fill = "blue", alpha = 0.3, lw = 0.1) +
+  
+  xlab(TeX("$\\eta_{10}$")) + ylab("Denstiy") +
+  
+  scale_color_manual(values = c("grey","red")) +
+  
+  guides(col = guide_legend(TeX("$\\eta_{est}$")))
+```
+
+```{r}
+#comparison of mean and sd of gibbs sampler and inla
+delta_eta_grid_inla = df_inla$eta_grid[2] - df_inla$eta_grid[1]
+
+mean_eta10_inla = sum(df_inla$eta_grid*delta_eta_grid_inla*df_inla$eta)
+sd_eta10_inla = sqrt(sum((df_inla$eta_grid -mean_eta10_inla)^2*delta_eta_grid_inla*df_inla$eta))
+print(paste0("Mean of eta 10 from INLA:", mean_eta10_inla))
+print(paste0("Standard deviation of eta 10 from INLA:", sd_eta10_inla))
+
+mean_eta10_gibbs = mean(df_gibbs[-(1:1000),]$eta.10)
+sd_eta10_gibbs = sd(df_gibbs[-(1:1000),]$eta.10)
+print(paste0("Mean of eta 10 from block Gibbs sampler:", mean_eta10_gibbs))
+print(paste0("Standard deviation of eta 10 from block Gibbs sampler:", sd_eta10_gibbs))
+```
+
+By inspection of Figure \ref{fig:comp_gibbs_inla_eta_distr} and by comparison of the values of the mean and the standard deviation, we see that the distributions from the block Gibbs sampler and the INLA method appear very similar. We therefore believe they result in approximately the same posterior distributions.
+
+## 5)
+
+Lastly we are going to apply the function inla() form the r-library INLA which we will refer to as R-INLA. When using the R-INLA it is important to use the same priors for $\theta$ when comparing results from other methods. This is done by specifying the prior within $f(\cdot)$ by using the argument \textit{hyper}. It is also important to define the same constraints.
+
+```{r, fig.width = 6}
+library(INLA)
+
+g.data = gauss_data
+# prec is short for "log precicion"
+# one of many choices for hyperparameters
+# For example, precisions are represented in the internal scale in the log-scale.
+# This is computationally convenient because in the internal scale the parameter
+# is not bounded. Therefore we use "loggamma" as prior
+hyper = list(`log precision` = list(prior = "loggamma", param=c(1,1)))
+
+#define prior on eta
+hyper_eta = list(prec = list(prior = "loggamma", param=c(1,1))) # specify prior on hyper parameter
+
+#hyper = list(prec = list(prior = "loggamma", param=c(1,1))) # equivalent definition
+# constr = sum to zero constraint
+# cyclic: boolean value specifying whether the model is cyclical
+# hyper: Specification of the hyperparameter, fixed or random, initial values,
+# priors and its parameters
+formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = FALSE) - 1
+# a second version to specify formula (same result, but eta not exactly equal)
+#formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = TRUE)
+data = data.frame(y = g.data$y, t = seq(1, length(g.data$y))) # can be either data frame or list
+rinla_result2 = inla(
+  # Description for linear predictor
+  formula = formula, 
+  # Likelihood for y given eta. Default is gaussian with identity link
+  family = "gaussian", 
+  # The dataset to be used (y and t)
+  data = data,
+  # Specify which quantiles are to be calculated
+  quantiles=c(0.025, 0.5, 0.975), # this is standard
+  control.family = list(hyper = list(prec =
+list(initial = 0, fixed = TRUE))), # make sure we use the same prior as earlier methods
+  control.predictor = list(link = 1) # calulate linear predictor
+)
+```
+
+```{r}
+# get important output for plotting
+df.inla = data.frame(t = data$t,
+                     eta.mean = rinla_result2$summary.random$t$mean,
+                     
+                     "lower.0.025.quantile" = rinla_result2$summary.random$t$`0.025quant`,
+                     
+                     "upper.0.975.quantile" = rinla_result2$summary.random$t$`0.975quant`)
+df.inla.long = pivot_longer(df.inla, -t, names_to = "lines")
+```
+
+```{r, fig.cap="Plot of \\label{fig:quantile_plot_eta_rinla} pointwise mean of $\\eta_t$ from the R-INLA method along with a 95 % confidence interval."}
+ggplot(df.inla.long, aes(x = t, y = value)) + geom_line(aes(col = lines)) + geom_point(aes(x = t, y = y, col = "y"), data = g.data) +
+  guides(col = guide_legend("Line/Points")) + scale_color_discrete(label=c("Mean of eta", "0.025 quantile of eta", "0.975 quantile of eta", "y"))
+```
+
+
+
+By comparison of the quantile plot in Figure \ref{fig:quantile_plot_eta_gibbs} for the block Gibbs sampler it seems that the results shown in Figure \ref{fig:quantile_plot_eta_rinla} is similar.
+Lastly we want to compare the results of all three methods: block Gibbs sampler, implemented INLA and R-INLA. We do the comparison by inspection of the densities plotted in Figure \ref{fig:comp_plot_eta10} and \ref{fig:comp_plot_theta}:
+
+
+```{r, fig.height=4, fig.width=6}
+#Comparing gibbs sampling, implemented INLA, and R-INLA
+colors_comparison = c("grey","red", "green")
+
+df_rinla = data.frame(theta = rinla_result2$marginals.hyperpar$`Precision for t`,
+                      eta10 = rinla_result2$marginals.linear.predictor$Predictor.10)
+```
+
+```{r, fig.height=4, fig.width=6, fig.cap="\\label{fig:comp_plot_eta10} Plot of the estimates for $\\eta_{10}$ from the results of all three methods."}
+#Comparing gibbs sampling, implemented INLA, and R-INLA
+ggplot(data = df_inla, aes(x=eta_grid, y=eta, col = "INLA est"))+
+  geom_line(size = 1) + 
+  geom_histogram(aes(x=eta.10, y = ..density.., col = "Gibbs est"), data = df_gibbs, bins = 50, fill = "blue", alpha = 0.3)+
+  geom_line(data = df_rinla, aes(x = eta10.x, y = eta10.y, col = "R-INLA est")) +
+  xlab(TeX("$\\eta_{10}$")) + 
+  ylab("Denstiy") + 
+  
+  scale_color_manual(values = colors_comparison) + 
+  
+  guides(col = guide_legend(TeX("$\\eta_{est}$")))+
+  xlim(-4, 4)
+```
+```{r, fig.height=4, fig.width=6, , fig.height=4, fig.width=6, fig.cap="\\label{fig:comp_plot_theta} Plot of the estimates for $\\theta$ from the results of all three methods."}
+#Comparing gibbs sampling, implemented INLA, and R-INLA
+ggplot(data = df_pm_theta, aes(x=grid, y=theta, col = "INLA est"))+
+  geom_line(size = 1) + 
+  geom_histogram(aes(x=theta, y = ..density.., col = "Gibbs est"), data = df_gibbs, bins = 50, fill = "blue", alpha = 0.3) +
+  geom_line(data = df_rinla, aes(x = theta.x, y = theta.y, col = "R-INLA est")) +
+  xlim(c(0,6))+ 
+  xlab(TeX("$\\theta$")) + ylab("Denstiy") + 
+  
+  scale_color_manual(values = colors_comparison) + 
+  
+  guides(col = guide_legend(TeX("$\\theta_{est}$")))
+```
+
+```{r}
+#calc mean and sd of all three methods for comparison, need to do it properly
+mean_eta10_gibbs = mean(df_gibbs[-(1:1000),]$eta.10)
+sd_eta10_gibbs = sd(df_gibbs[-(1:1000),]$eta.10)
+
+#calculating the mean and sd for the inla method
+#by definition of mean and variance
+mean_eta10_inla = sum(df_inla$eta_grid*delta_eta_grid_inla*df_inla$eta)
+sd_eta10_inla = sqrt(sum((df_inla$eta_grid -mean_eta10_inla)^2*delta_eta_grid_inla*df_inla$eta))
+
+#calculating the mean and sd for the r inla method
+#by definition of mean and variance
+mean_eta10_rinla = rinla_result2$summary.linear.predictor$mean[10]
+sd_eta10_rinla = rinla_result2$summary.linear.predictor$sd[10]
+
+#constructing comparison data frame for eta 10 predictor
+df_comp_all_methods_eta10 = data.frame(Methods = c("Block Gibbs sampling", "INLA", "R-INLA"),
+                                       Means = c(mean_eta10_gibbs, mean_eta10_inla, mean_eta10_rinla),
+                                       SDs = c(sd_eta10_gibbs, sd_eta10_inla, sd_eta10_rinla))
+
+print(df_comp_all_methods_eta10)
+
+```
+
+
+The implemented INLA and R-INLA seem to produce almost identical results by comparison of standard deviations, means and comparing the distributions graphically. They also give a very similar distributions compared to the distributions estimated by the histograms of the samples from the block Gibbs algorithm. Some of the difference between the histograms and the density plots from the INLA methods can be explained by the fact that the block Gibbs sampler only converges to the true distribution asymptotically as the number of samples increases towards infinity. For a better approximation we could therefore run the MCMC chain longer. For the INLA scheme the only approximation we do is for the numerical integration. Our estimates appear quite good, but for even better precicion we could use a finer grid (smaller step size).
 
 
 
