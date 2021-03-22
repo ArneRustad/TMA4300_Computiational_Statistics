@@ -34,6 +34,9 @@ library(boot)
 library(stats)
 library(latex2exp)
 library(coda)
+library(INLA)
+library(mvtnorm)
+library(MASS)
 ```
 
 # Problem A
@@ -1344,170 +1347,192 @@ In Figure \ref{fig:hist_marginals} the estimated marginal posterior distribution
 We note that $\lambda_0 | \vect x$ and $\lambda_1 | \vect x$ appear to be practically independent of each other.
 
 
-#  Problem B:
+# Problem B:
 
-Loading the dataset from github
+In this problem we are going to estimate the posterior marginals of the smooth effect of time series data. First a block Gibbs sampler is implemented and applied to the data set and then we implement an INLA-scheme to solve the same problem for comparison. Furthermore we apply the R-INLA on the dataset and finally compare the results from all three methods. 
+
+
+First we have to load the dataset from github:
+
 ```{r}
 library(ggplot2)
 
-g.data <- read.csv("https://raw.githubusercontent.com/johanage/TMA4300/master/Gaussian%20Data.csv", header=FALSE, col.names = "y")
-g.data$t = seq(1, length(g.data$y))
-ggplot(g.data, aes(x=t, y = y)) + geom_point()
+gauss_data_csv <- read.csv("https://raw.githubusercontent.com/ArneRustad/TMA4300_Computiational_Statistics/main/Gaussian%20Data.csv", header=FALSE)
+
+gauss_data = data.frame(y = gauss_data_csv[,1], t = seq(1,length(gauss_data_csv[,1])))
 ```
 
+```{r, fig.cap="Scatter plot of the data points from the gaussian distributed data."}
+ggplot(gauss_data, aes(x=t, y=y) ) +
+  geom_point()
+```
 
-Our main inferential interest lies in the posterior marginal for the smooth effect $\Pi(\eta (t)|y), t = 1, . . . , T.$
-
-1. Explain why this model is a latent Gaussian model and why it is possible to use INLA to estimate the
-parameters.
-
-
-A latent variable model relates a set of observable variables to a set of inferred variables. A latent Gaussian model is a model which infers a variable based on observed variables with that have a Gaussian distribution.
+By inspecting the plot it is reasonable to assume that the data is distributed around some mean which looks like a third or fourth degree polynomial.
 
 
-2. Define and implement a block Gibbs sampling algorithm for $f(\eta, \Theta|y)$ using the following two (block)
-proposals:
-Propose a new value for $\Theta$ from the full conditional $\Pi(\Theta|\eta, y)$
-Propose a new value for the vector $\eta$ from the full conditional $\Pi(\eta|\Theta, y)$
-Use the samples to get an estimate for the posterior marginal for the hyperparameter $\Pi(\Theta|y)$
-Use the samples to get an estimate of the smooth effect using the mean and pointwise a $95\%$ confidence
-bound around the mean.
+We assume that, given the vector $\vect \eta =(\eta_1, \dots, \eta_T)$ the observations $y_t$ are independent and Gaussian distributed with mean $\eta_t$ and known unit variance:
+
+\begin{align*}
+y_t | \eta_t &\sim \mathcal{N} (\eta_t, 1); \qquad t = 1, \dots, T \\
+\pi(y | \eta_t) &= \frac{1}{\sqrt{2\pi}} e^{ \frac{1}{2}(y_t - \eta_t)^2} 
+\end{align*}
+The linear predictor $\eta_t$ is linked to a smooth effect of time as $\eta_t = f_t$ and we choose to use a second order random walk model as prior distribution for the vector $\vect f = (f_1, \dots, f_T)$, so that
+
+\begin{equation} \label{eq:prior_f}
+\pi(\vect f | \theta) \propto \theta^{T-2} 
+\exp \left \{-\frac{\theta}{2} \sum_{t=3}^T (f_t - 2 f_{t-1} + f_{t-2})^2 \right \} 
+\sim \mathcal{N} (0, \matr Q(\theta)
+\end{equation}
+
+Thus, $\vect f | \theta)$ is Gaussian distributed with mean $\vect 0$ and precision matrix $\matr Q(\theta)$. The precicion parameter $\theta$ controls the smoothness of the vector $\vect f$ and we assign $\theta$ a $\textrm{Gamma}(1,1)$ distribution as prior.
+
+Our main inferential interest lies in the posterior marginal for the smooth effect $\pi(\eta_t|\vect{y}), t = 1, . . . , T.$.
+
+## 1)
+
+We want to use a latent Gaussian model to estimate the smooth effect of this time series data. A latent Gaussian model (LGM) consist of three elements: a likelihood model, a latent Gaussian field and a vector of hyperparameters. In this particular model we have a single hyperparameter $\vect{\theta}$ which controls the smoothness of the temporal effect $\vect{f} = (f_1, ..., f_T)$. We have a latent Gaussian field $\vect{x} \equiv \{ \vect \eta, \vect{f}\}$ and we have a likelihood $\pi(\vect{y}|\vect{\eta}, \theta) = \Pi_{t=1}^{T}\pi(y_t|\eta_t, \theta)$. 
+
+The observed data $\vect{y}$ is assumed to be conditionally independent given the latent Gaussian field $\vect{x} = \{ \vect{\eta}, \vect{f}\}$ so that the univariate model for the likelihood describes the  marginal distribution of the observation. In a generalized linear model (GLM) framework of an obersvation $y_i$, the observation is linked to a Gaussian linear predictor $\eta_i$ through a link function. In this exercise the link function is the identity link function. The linear predictor $\eta_t$ is linked to a smooth effect of time $f_t$ as $\eta_t = f_t$, where $\vect f$ is a second order random walk which simulates the temporal effects. Considering the elements from the LGM the model can formally be written as:
+
+\begin{align*}
+\vect{y}|\vect{\eta}, \theta &\sim \Pi_{i=1}^{T}\pi(y_i|\eta_i, \theta)\\
+\vect{\eta}|\theta &\sim \mathcal{N}(0, (\vect{Q}(\theta)^{-1}))\\
+\theta &\sim \pi(\theta)
+\end{align*}
+
+
+where $\vect{Q}(\theta)$ is the precision matrix of the latent Gaussian field and it is generally assumed to be sparse. In our case it is a band matrix with bandwith 2. 
+
+We will now derive an expression for the precision matrix $\vect{Q}(\theta)$ where we use the definition in Equation (\ref{eq:prior_f}).
+
+\begin{equation*}
+\frac{\theta}{2} \sum_{t=3}^T [f_t - 2f_{t-1} + f_{t-2}]^2 = -\frac{1}{2}\vect{f}^T\vect{Q}(\theta)\vect{f} = -\frac{1}{2}\vect{f}^T\vect{Q}_0\theta\vect{f}
+\end{equation*}
+
+where $\matr{Q}_0$ is the precision matrix independent of the hyperparameter $\theta$. The factorization of $\matr{Q}_0$ and $\theta$ done in the above equation is evident from the form of the expression of the left hand side of the equation. By comparing the sum and the matrix form we get that $\sum_{t=3}^T [f_t - 2f_{t-1} + f_{t-2}]^2 = \mathbf{f}^T\mathbf{Q}_0\mathbf{f}$. There are several ways of deriving the expression for the precision matrix, but here we will do it by comparing the elements of the sum:
+
+\begin{align*}
+[f_t - 2f_{t-1} + f_{t-2}]^2 &= f_t^2 + (2f_{t-1})^2 + f_{t-2}^2 + f_t(- 2f_{t-1} + f_{t-2}) - 2f_{t-1}(f_t + f_{t-2}) + f_{t-2}(f_t - 2f_{t-1})\\
+&=  f_t^2 + 4f_{t-1}^2 + f_{t-2}^2 + f_t(- 2f_{t-1} + f_{t-2}) - 2f_{t-1}(f_t + f_{t-2}) + f_{t-2}(f_t - 2f_{t-1})
+\end{align*}
+
+It follows that in matrix format this is
+
+\begin{equation*}
+\mathbf{f}^T\mathbf{Q}_0\mathbf{f} = \begin{bmatrix}
+f_1 & \hdots & f_T
+\end{bmatrix}
+\begin{vmatrix}
+1 & -2 & 1 \\
+-2 & 5 & -2 & 1 &&\Huge0\\
+1 & -2 & 6 & -2 & 1 \\
+ & \ddots & \ddots & \ddots & \ddots & \ddots \\
+ &&1 &-2 & 6 & -2 & 1\\
+ \Huge0&&& 1& -2 & 5 & -2\\
+ &&&&1 & -2 & 1 
+\end{vmatrix}
+\begin{bmatrix}
+f_1 \\
+\vdots\\
+f_T
+\end{bmatrix}
+.
+\end{equation*}
+
+and then we have the expression for the $\theta$ dependent precision matrix $\mathbf{Q}(\theta)$. The algorithm which generates this matrix is implemented below.
 
 
 ```{r}
-# gibbs_sampling = function(precision_matrix, pi_f_gtheta, n_samples){
-#   theta = 1
-#   Q = matrix(NA, nrow = n_samples, ncol = n_samples){
-#     for(i in 1:n_samples){
-#       for(j in 1:n_samples){
-#         break
-#       }
-#       break
-#     }
-#   }
-# 
-# }
-```
+gen_Q = function(n_samples){
+  Q = matrix(0, nrow = n_samples, ncol = n_samples)
+   for(i in 1:n_samples){
+     for(j in 1:n_samples){
+       if(i == j){
+         if(i == 1 || i == n_samples){Q[i,j] = 1}
+         else if(i == 2 || i == n_samples - 1){Q[i,j]= 5}
+         else Q[i,j] = 6
+       }
+       if( i == j + 1 || i == j-1){
+          if(i + j == 3 || i + j == 2*n_samples - 1){Q[i,j] = -2}
+          else Q[i,j] = -4
+       }
+       if(i == j - 2 || i == j+2){Q[i,j] = 1}
+     }
+   }
+  return(Q)
+}
 
+pi_theta_given_etay = function(Q_matrix, y, eta){
+  ym = as.matrix(y)
+  etam = as.matrix(eta)
+  Q_m = as.matrix(Q_matrix)
+  distr = (2*pi)^(-length(ym))*det(Q_m)*exp(-(1/2)*t(ym - etam)%*%(Q_m + diag(length(Q_m[,1])))%*%(ym - etam) - (1/2)*t(ym)%*%Q_m%*%etam + t(etam)%*%Q_m%*%ym + (1/2)*t(etam)%*%Q_m%*%etam)
+  return(distr)
+}
 
-3. We want to approximate the posterior marginal for the hyperparameter $\Theta, \Pi(\Theta|y)$ using the INLA
-scheme. We start from:
-\begin{equation}
-\Pi(\Theta|y) \propto \frac{\Pi(y|\eta, \Theta)\Pi(\eta|\Theta)\Pi(\Theta)}{\Pi(\eta|\Theta, y)}
-\end{equation}
+#Generating the precision matrix from the random walk sum
+Q_nbn = gen_Q(n_samples = length(gauss_data[,1]))
+#print to confirm correct form
+#print(Q_nbn)
 
-Note that since the likelihood is Gaussian then also $\Pi(\eta|\Theta, y)$ is Gaussian.
-Consider a grid of value between 0 and 6 and use 5 to construct an approximation for $\Pi(\Theta|y)$. Compare your
-result with the MCMC estimate you obtained in point 1)
-4. We now want to implement the next step in the INLA scheme, the approximation of the marginal
-posterior for the smooth effect, $\Pi(\eta_i|y)$.
-We have that:
-\begin{equation}
-\pi(\eta_i|y) = \int \pi(\eta_i|y, \Theta)\Pi(\Theta|y)d\Theta
-\end{equation}
+#trying to generate sigma
+sigma = solve(Q_nbn + diag(length(gauss_data[,1])))
 
-Use the grid of $\Theta$ value from point 2) to approximate the integral above for $i = 10$. Compare your approximation
-for $\Pi(\eta_i|y)$ with the estimation obtained in point 1) via Gibbs sampling.
-
-
-
-## 5)
-
-```{r, fig.width = 6}
-library(INLA)
-# prec is short for "log precicion"
-# one of many choices for hyperparameters
-# For example, precisions are represented in the internal scale in the log-scale. This is computationally convenient because in the internal scale the parameter is not bounded. Therefore we use "loggamma" as prior
-hyper = list(`log precision` = list(prior = "loggamma", param=c(1,1)))
-hyper = list(prec = list(prior = "loggamma", param=c(1,1))) # equivalent definition
-
-# constr = sum to zero constraint
-# cyclic: boolean value specifying whether the model is cyclical
-# hyper: Specification of the hyperparameter, fixed or random, initial values, priors and its parameters
-#formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = FALSE) - 1
-
-# a second version to specify formula (same result, but eta not exactly equal)
-formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = TRUE)
-
-data = data.frame(y = g.data$y, t = seq(1, length(g.data$y))) # can be either data frame or list
-result = inla(
-  # Description for linear predictor
-  formula = formula, 
-  # Likelihood for y given eta. Default is gaussian with identity link
-  family = "gaussian", 
-  # The dataset to be used (y and t)
-  data = data,
-  # Specify which quantiles are to be calculated
-  quantiles=c(0.025, 0.5, 0.975), # this is standard
-  control.predictor = list(link = 1) # calulate linear predictor
-)
-
-# get important output for plotting
-df.inla = data.frame(t = data$t, eta.mean = result$summary.random$t$mean,
-                     linear.pred.mean = result$summary.linear.predictor$mean,
-                     "lower.0.025.quantile" = result$summary.random$t$`0.025quant`,
-                     "upper.0.975.quantile" = result$summary.random$t$`0.975quant`)
-df.inla.long = pivot_longer(df.inla, -t, names_to = "lines")
-ggplot(df.inla.long, aes(x = t, y = value)) + geom_line(aes(col = lines)) + geom_point(aes(x = t, y = y, col = "y"), data = g.data) +
-  guides(col = guide_legend("Line/Points")) + scale_color_discrete(label=c("Mean of eta", "Mean of linear predictor", "0.025 quantile of eta", "0.975 quantile of eta", "y"))
-ggsave("2.jpg", width = 6, height = 3, path = "C:/trash/")
+eta0 = gauss_data + runif(n= length(gauss_data), min = 0.1, max = 0.2)
+test = pi_theta_given_etay(Q_matrix = Q_nbn, y = gauss_data, eta = eta0)
 
 ```
 
-```{r, fig.width = 6}
-library(INLA)
-# prec is short for "log precicion"
-# one of many choices for hyperparameters
-# For example, precisions are represented in the internal scale in the log-scale. This is computationally convenient because in the internal scale the parameter is not bounded. Therefore we use "loggamma" as prior
-hyper = list(`log precision` = list(prior = "loggamma", param=c(1,1)))
-#hyper = list(prec = list(prior = "loggamma", param=c(1,1))) # equivalent definition
+Integrated Nested Laplace Approximations is a way to do inference on latent Gaussian models (LGM) under the following assumptions:
 
-# constr = sum to zero constraint
-# cyclic: boolean value specifying whether the model is cyclical
-# hyper: Specification of the hyperparameter, fixed or random, initial values, priors and its parameters
-formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = FALSE) - 1
+1. Each data point depends only on one of the elements in the latent Gaussian field, $\mathbf{x}$, which is the linear predictor such that the likelihood can be written as:
 
-# a second version to specify formula (same result, but eta not exactly equal)
-#formula = y ~ f(t, model = "rw2", hyper = hyper, cyclic = FALSE, constr = TRUE)
+\begin{equation*}
+\mathbf{y}|\mathbf{x}, \vect \theta \sim \prod_i \pi (y_i, \eta_i, \vect{\theta}). 
+\end{equation*} 
 
-data = data.frame(y = g.data$y, t = seq(1, length(g.data$y))) # can be either data frame or list
-result = inla(
-  # Description for linear predictor
-  formula = formula, 
-  # Likelihood for y given eta. Default is gaussian with identity link
-  family = "gaussian", 
-  # The dataset to be used (y and t)
-  data = data,
-  # Specify which quantiles are to be calculated
-  quantiles=c(0.025, 0.5, 0.975), # this is standard
-  control.predictor = list(link = 1) # calulate linear predictor
-)
+2. The size of the hyperparameter vector $\theta$ is small, for example $\theta<15$.
 
-# get important output for plotting
-df.inla = data.frame(t = data$t, eta.mean = result$summary.random$t$mean,
-                     linear.pred.mean = result$summary.linear.predictor$mean,
-                     "lower.0.025.quantile" = result$summary.random$t$`0.025quant`,
-                     "upper.0.975.quantile" = result$summary.random$t$`0.975quant`)
-df.inla.long = pivot_longer(df.inla, -t, names_to = "lines")
-ggplot(df.inla.long, aes(x = t, y = value)) + geom_line(aes(col = lines)) + geom_point(aes(x = t, y = y, col = "y"), data = g.data) +
-  guides(col = guide_legend("Line/Points")) + scale_color_discrete(label=c("Mean of eta", "Mean of linear predictor", "0.025 quantile of eta", "0.975 quantile of eta", "y"))
-ggsave("1.jpg", width = 6, height = 3, path = "C:/trash/")
-```
+3. The latent field $\mathbf{x}$, can be large but it is endowed with some conditional independence (Markov) properties so that the precision matrix $Q(\vect{\theta})$ is sparse.
+
+4. The linear predictor depends linearly on the unknown smooth function of covariates.
+
+5. The inferential interest lies in the univariate posterior marginals $\pi(x_i|y)$ and $\pi(\theta_j|y)$ rather than in the joint posterior $\pi(x, \theta|y)$.
+
+Since we have assumed each observation $y_i$ to be independently normally distributed around $\eta_t$ with unit variance we obviously have that each data point depends only on one of the elements in the latent Gaussian field. Since we only have one hyperparameter $\theta$, assumption 2 is also satisfied. We have also shown that the precision matrix $Q(\mathbf{\theta})$ is sparse thereby satisfying assumption 3. As we have assumed $\eta_t = f_t$, the linear predictor depends linearly on the unknown smooth function of covariates, proving that assumption 4 is satisfied. Lastly, as we are interested in univariate posterior marginals, we have that assumption 5 is satisfied. Since our chosen model is a LGM we have thereby shown that all the neccecary assumptions to be able to use INLA inference is satisfied.
 
 
-```{r}
-n=100
-z=seq(0,6,length.out=n)
-y=sin(z)+rnorm(n,mean=0,sd=0.5)
 
-data=data.frame(y=y,z=z)
 
-formula=y~f(z,model="rw2")
-result=inla(formula,data=data,family="gaussian")
 
-plot(z, y)
-lines(z, result$summary.random$z$mean, col = "red")
-```
+## 2)
+
+Now that we have the formal expression of the latent Gaussian we can continue with defining the block Gibbs sampling algorithm that we will use:
+
+1. Initiate $\eta = \mathbf{0}$ and initiate $\theta$ by sampling $\theta \sim \mathrm{Gamma}(1,1)$.
+
+2. Sample $\theta_{new}$ from the full conditional $\pi (\theta|\mathbf{\eta}, \mathbf{y})$.
+
+3. Sample $\eta_{new}$ from the full conditional $\pi (\eta|\mathbf{\theta}, \mathbf{y})$.
+
+4. Repeat step 2 and 3 until convergence.
+
+5. Run step 2 and 3 until you have a desired amount of samples.
+
+In the block Gibbs sampling algorithm all samples are accepted.
+
+#### Calculating the full conditional $\pi (\theta|\mathbf{\eta}, \mathbf{y})$
+We find an expression for the full conditional of $\theta$ by using that it is proportional to the joint posterior distribution $\pi(\mathbf{\eta}, \theta|\mathbf{y})$:
+
+
+\begin{equation*}
+\pi(\theta|\eta, \mathbf{y}) \propto \pi(\mathbf{\eta}, \theta|\mathbf{y}) \\
+\pi(\theta|\eta, \mathbf{y}) \propto \pi(\mathbf{y}|\mathbf{\eta}) \pi(\mathbf{\eta}|\theta)\pi(\theta) \\
+\pi(\theta|\eta, \mathbf{y}) \propto \pi(\mathbf{y}|\mathbf{\eta}) \pi(\mathbf{f}|\theta)\pi(\theta)\\
+\end{equation*}
+
+
+
 
 
 
